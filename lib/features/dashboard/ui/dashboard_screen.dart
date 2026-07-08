@@ -14,24 +14,25 @@ import 'widgets/pending_enrollment_card.dart';
 import 'widgets/stat_card.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  const DashboardScreen({super.key, required this.repository});
+
+  final DashboardRepository repository;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  final _repository = DashboardRepository();
   late Future<DashboardData> _dataFuture;
 
   @override
   void initState() {
     super.initState();
-    _dataFuture = _repository.fetch();
+    _dataFuture = widget.repository.fetch();
   }
 
   Future<void> _refresh() async {
-    final data = await _repository.fetch();
+    final data = await widget.repository.fetch();
     setState(() => _dataFuture = Future.value(data));
   }
 

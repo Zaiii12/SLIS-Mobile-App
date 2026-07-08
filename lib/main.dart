@@ -8,6 +8,8 @@ import 'features/auth/data/auth_api.dart';
 import 'features/auth/data/auth_repository.dart';
 import 'features/auth/state/auth_provider.dart';
 import 'features/auth/ui/splash_screen.dart';
+import 'features/dashboard/data/dashboard_api.dart';
+import 'features/dashboard/data/dashboard_repository.dart';
 
 void main() {
   final tokenStorage = TokenStorage();
@@ -26,18 +28,40 @@ void main() {
     tokenStorage: tokenStorage,
   );
 
-  runApp(SlisMobileApp(authRepository: authRepository));
+  final dashboardRepository = DashboardRepository(
+    DashboardApi(
+      studentClient: dioClientFactory.student,
+      enrollmentClient: dioClientFactory.enrollment,
+    ),
+  );
+
+  runApp(
+    SlisMobileApp(
+      authRepository: authRepository,
+      dashboardRepository: dashboardRepository,
+    ),
+  );
 }
 
 class SlisMobileApp extends StatelessWidget {
-  const SlisMobileApp({super.key, required this.authRepository});
+  const SlisMobileApp({
+    super.key,
+    required this.authRepository,
+    required this.dashboardRepository,
+  });
 
   final AuthRepository authRepository;
+  final DashboardRepository dashboardRepository;
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AuthProvider(authRepository: authRepository),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => AuthProvider(authRepository: authRepository),
+        ),
+        Provider.value(value: dashboardRepository),
+      ],
       child: MaterialApp(
         title: 'ASIA',
         debugShowCheckedModeBanner: false,

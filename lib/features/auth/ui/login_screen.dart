@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../state/auth_provider.dart';
+import '../../dashboard/data/dashboard_repository.dart';
 import '../../dashboard/ui/dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -36,8 +37,11 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (success && mounted) {
+      final dashboardRepository = context.read<DashboardRepository>();
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        MaterialPageRoute(
+          builder: (_) => DashboardScreen(repository: dashboardRepository),
+        ),
         (route) => false,
       );
     }

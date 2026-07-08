@@ -22,14 +22,23 @@ class AuthRepository {
     return newToken;
   }
 
-  /// True if a stored access token exists, meaning the app can attempt to
-  /// restore a session without showing the login screen first. This pass
-  /// doesn't re-fetch the user profile on restore (no `/me/` endpoint was
-  /// confirmed) so the caller should treat the restored session as
-  /// "authenticated" without a fresh User until one logs in again.
+  /// True if a stored access token exists. This is presence-only and does
+  /// not confirm the token is still valid; use [restoreSession] to validate
+  /// against the backend before trusting it.
   Future<bool> hasStoredSession() async {
     final token = await _tokenStorage.readAccessToken();
     return token != null;
+  }
+
+  /// Validates a stored session by attempting a token refresh. No `/me/`
+  /// endpoint is confirmed yet, so refresh doubles as the validity check:
+  /// the identity-service rejects it if the underlying refresh token
+  /// (httpOnly cookie) is expired or missing.
+  Future<bool> restoreSession() async {
+    final token = await _tokenStorage.readAccessToken();
+    if (token == null) return false;
+    final newToken = await refreshAccessToken();
+    return newToken != null;
   }
 
   Future<void> logout() async {

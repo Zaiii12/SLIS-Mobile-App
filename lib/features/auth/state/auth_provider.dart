@@ -19,12 +19,21 @@ class AuthProvider extends ChangeNotifier {
   User? get user => _user;
   String? get errorMessage => _errorMessage;
 
-  /// Checks for a stored token on app launch. Does not re-fetch the user
-  /// profile (no confirmed `/me/` endpoint yet), so `_user` stays null after
-  /// a restored session until the next successful login.
+  /// Validates any stored token on app launch via a refresh call, so a
+  /// stale/expired token (e.g. left over from a prior install) doesn't
+  /// route straight to the dashboard. Does not re-fetch the user profile
+  /// (no confirmed `/me/` endpoint yet), so `_user` stays null after a
+  /// restored session until the next successful login.
   Future<void> tryRestoreSession() async {
-    final hasSession = await _authRepository.hasStoredSession();
-    _status = hasSession ? AuthStatus.authenticated : AuthStatus.unauthenticated;
+    bool restored = false;
+    try {
+      restored = await _authRepository
+          .restoreSession()
+          .timeout(const Duration(seconds: 10));
+    } catch (_) {
+      restored = false;
+    }
+    _status = restored ? AuthStatus.authenticated : AuthStatus.unauthenticated;
     notifyListeners();
   }
 

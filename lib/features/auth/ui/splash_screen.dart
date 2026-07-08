@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../dashboard/data/dashboard_repository.dart';
 import '../../dashboard/ui/dashboard_screen.dart';
 import '../state/auth_provider.dart';
 import 'login_screen.dart';
@@ -28,7 +29,7 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     final destination = authProvider.status == AuthStatus.authenticated
-        ? const DashboardScreen()
+        ? DashboardScreen(repository: context.read<DashboardRepository>())
         : const LoginScreen();
 
     Navigator.of(context).pushAndRemoveUntil(

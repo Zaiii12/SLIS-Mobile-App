@@ -1,38 +1,70 @@
+import 'package:flutter/foundation.dart';
+
 import '../models/dashboard_data.dart';
+import 'dashboard_api.dart';
 
-/// Provides Dashboard data. No ASIA backend endpoint for these aggregate
-/// stats has been confirmed yet (see plan's Open Questions), so [fetch]
-/// currently returns static sample data shaped like the design mock. This
-/// method is the single seam to swap in a real HTTP call once the endpoint
-/// is available — callers (DashboardScreen) don't need to change.
+/// Static Announcements & Forms feed. No backend model/endpoint exists for
+/// this yet (see handoff doc) — kept as placeholder content until a real
+/// announcements endpoint is added to enrollment-service or a shared service.
+const _placeholderAnnouncements = [
+  Announcement(
+    category: AnnouncementCategory.enrollment,
+    title: 'Enrollment period closes July 15',
+    relativeTime: '2 hours ago',
+  ),
+  Announcement(
+    category: AnnouncementCategory.form,
+    title: 'New SF10 form template uploaded',
+    relativeTime: '1 day ago',
+  ),
+  Announcement(
+    category: AnnouncementCategory.deadline,
+    title: 'Grade submission deadline: July 20',
+    relativeTime: '2 days ago',
+  ),
+];
+
+/// Provides Dashboard data. Stat cards and today's attendance are fetched
+/// live from student-service / enrollment-service via [DashboardApi];
+/// Announcements & Forms has no backing endpoint yet, so it stays static.
 class DashboardRepository {
-  Future<DashboardData> fetch() async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+  DashboardRepository(this._api);
 
-    return const DashboardData(
-      schoolYear: 'S.Y. 2025-2026',
-      totalStudents: 1248,
-      activeStudents: 1190,
-      enrolledThisYear: 1190,
-      pendingEnrollment: 34,
-      attendance: AttendanceBreakdown(present: 1102, late: 30, absent: 58),
-      announcements: [
-        Announcement(
-          category: AnnouncementCategory.enrollment,
-          title: 'Enrollment period closes July 15',
-          relativeTime: '2 hours ago',
-        ),
-        Announcement(
-          category: AnnouncementCategory.form,
-          title: 'New SF10 form template uploaded',
-          relativeTime: '1 day ago',
-        ),
-        Announcement(
-          category: AnnouncementCategory.deadline,
-          title: 'Grade submission deadline: July 20',
-          relativeTime: '2 days ago',
-        ),
-      ],
+  final DashboardApi _api;
+
+  static const _fallbackStats = DashboardStats(
+    schoolYear: '2025-2026',
+    totalStudents: 1248,
+    activeStudents: 1190,
+    enrolledThisYear: 1190,
+    pendingEnrollment: 34,
+  );
+  static const _fallbackAttendance = AttendanceBreakdown(present: 1102, late: 30, absent: 58);
+
+  Future<DashboardData> fetch() async {
+    final now = DateTime.now();
+
+    // Stats and attendance come from different endpoints (student-service vs.
+    // enrollment-service) — fetch them independently so one failing endpoint
+    // (e.g. attendance/summary before its table exists) doesn't blank out
+    // stats that are already working.
+    final stats = await _api.fetchStats().catchError((error, stackTrace) {
+      debugPrint('DashboardApi.fetchStats failed, using sample data: $error\n$stackTrace');
+      return _fallbackStats;
+    });
+    final attendance = await _api.fetchTodayAttendance(now).catchError((error, stackTrace) {
+      debugPrint('DashboardApi.fetchTodayAttendance failed, using sample data: $error\n$stackTrace');
+      return _fallbackAttendance;
+    });
+
+    return DashboardData(
+      schoolYear: 'S.Y. ${stats.schoolYear}',
+      totalStudents: stats.totalStudents,
+      activeStudents: stats.activeStudents,
+      enrolledThisYear: stats.enrolledThisYear,
+      pendingEnrollment: stats.pendingEnrollment,
+      attendance: attendance,
+      announcements: _placeholderAnnouncements,
     );
   }
 }
