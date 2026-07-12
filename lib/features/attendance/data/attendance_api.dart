@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 
+import '../../advisory/models/section_advisory.dart';
 import '../../dashboard/models/dashboard_data.dart';
+import '../../grades/models/grading_template.dart' show schoolLevelToJson;
 import '../models/attendance_status.dart';
 import '../models/roster_entry.dart';
 
@@ -16,23 +18,39 @@ class AttendanceApi {
 
   final Dio _enrollment;
 
+  /// Per `attendance/views.py`'s `summary` action: takes `date_from`/
+  /// `date_to` (a single day is both set to the same date) and returns
+  /// counts nested under `totals`, not as flat top-level fields.
   Future<AttendanceBreakdown> fetchSummary(DateTime date) async {
+    final isoDate = _isoDate(date);
     final response = await _enrollment.get(
       '/api/attendance/summary/',
-      queryParameters: {'date': _isoDate(date)},
+      queryParameters: {'date_from': isoDate, 'date_to': isoDate},
     );
     final data = response.data as Map<String, dynamic>;
+    final totals = data['totals'] as Map<String, dynamic>? ?? const {};
     return AttendanceBreakdown(
-      present: data['present'] as int? ?? 0,
-      late: data['late'] as int? ?? 0,
-      absent: data['absent'] as int? ?? 0,
+      present: totals['present'] as int? ?? 0,
+      late: totals['late'] as int? ?? 0,
+      absent: totals['absent'] as int? ?? 0,
     );
   }
 
-  Future<List<RosterEntry>> fetchRoster(int sectionAdvisoryId) async {
+  /// There is no `section_advisory` filter on `/api/enrollments/` — a
+  /// `SectionAdvisory` is really just a saved (school_year, school_level,
+  /// grade_level, section[, strand]) tuple (see `teacher_student_ids()` in
+  /// the backend's permissions module), so the roster is scoped by matching
+  /// those fields directly via `EnrollmentFilter`.
+  Future<List<RosterEntry>> fetchRoster(SectionAdvisory section) async {
     final response = await _enrollment.get(
       '/api/enrollments/',
-      queryParameters: {'section_advisory': sectionAdvisoryId},
+      queryParameters: {
+        'school_year': section.schoolYear,
+        'school_level': schoolLevelToJson(section.schoolLevel),
+        'grade_level': section.gradeLevel,
+        'section': section.section,
+        if (section.strand != null) 'strand': section.strand,
+      },
     );
     final data = response.data;
     final results = data is Map<String, dynamic> ? data['results'] as List? : data as List?;
@@ -40,15 +58,20 @@ class AttendanceApi {
   }
 
   /// Existing attendance records for a section/date, keyed by enrollment id
-  /// server-side — used to pre-populate the roster before submission.
+  /// server-side — used to pre-populate the roster before submission. Scoped
+  /// via `enrollment__school_year`/`grade_level`/`section` (confirmed
+  /// `filterset_fields` on `AttendanceViewSet`) since there is no
+  /// `section_advisory` filter.
   Future<Map<int, AttendanceStatus>> fetchExisting({
-    required int sectionAdvisoryId,
+    required SectionAdvisory section,
     required DateTime date,
   }) async {
     final response = await _enrollment.get(
       '/api/attendance/',
       queryParameters: {
-        'section_advisory': sectionAdvisoryId,
+        'enrollment__school_year': section.schoolYear,
+        'enrollment__grade_level': section.gradeLevel,
+        'enrollment__section': section.section,
         'date': _isoDate(date),
       },
     );
@@ -62,21 +85,22 @@ class AttendanceApi {
     return marks;
   }
 
+  /// Per `attendance/views.py`'s `bulk` action: a single `date` plus a
+  /// `records` list of `{enrollment_id, status}` — not a bare array of
+  /// per-record `{enrollment, date, status}` objects.
   Future<void> submitBulk({
     required Map<int, AttendanceStatus> marks,
     required DateTime date,
   }) async {
-    final isoDate = _isoDate(date);
     await _enrollment.post(
       '/api/attendance/bulk/',
-      data: [
-        for (final entry in marks.entries)
-          {
-            'enrollment': entry.key,
-            'date': isoDate,
-            'status': entry.value.toJson(),
-          },
-      ],
+      data: {
+        'date': _isoDate(date),
+        'records': [
+          for (final entry in marks.entries)
+            {'enrollment_id': entry.key, 'status': entry.value.toJson()},
+        ],
+      },
     );
   }
 }

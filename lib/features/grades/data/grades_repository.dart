@@ -1,5 +1,5 @@
+import '../../advisory/models/section_advisory.dart';
 import '../models/graded_student.dart';
-import '../models/grading_component.dart';
 import '../models/grading_template.dart';
 import '../models/score_entry.dart';
 import '../models/subject.dart';
@@ -10,26 +10,29 @@ class GradesRepository {
 
   final GradesApi _api;
 
-  Future<List<Subject>> fetchSubjects() => _api.fetchSubjects();
+  Future<List<Subject>> fetchSubjects({required SchoolLevel schoolLevel}) =>
+      _api.fetchSubjects(schoolLevel: schoolLevel);
 
-  Future<GradingTemplate?> fetchTemplateForLevel(String schoolLevel) =>
-      _api.fetchTemplateForLevel(schoolLevel);
-
-  Future<List<GradingComponent>> fetchComponents(int gradingTemplateId) =>
-      _api.fetchComponents(gradingTemplateId);
+  Future<GradingTemplate?> fetchTemplateForSubject(int subjectId) =>
+      _api.fetchTemplateForSubject(subjectId);
 
   Future<List<GradedStudent>> fetchGradedRoster({
-    required int sectionAdvisoryId,
+    required SectionAdvisory section,
     required int subjectId,
     required String period,
   }) =>
-      _api.fetchGradedRoster(sectionAdvisoryId: sectionAdvisoryId, subjectId: subjectId, period: period);
+      _api.fetchGradedRoster(section: section, subjectId: subjectId, period: period);
 
-  Future<List<ScoreEntry>> fetchScoreEntries({required int enrollmentId, required String period}) =>
-      _api.fetchScoreEntries(enrollmentId: enrollmentId, period: period);
+  Future<List<ScoreEntry>> fetchScoreEntries({
+    required int enrollmentId,
+    required int subjectId,
+    required String period,
+  }) =>
+      _api.fetchScoreEntries(enrollmentId: enrollmentId, subjectId: subjectId, period: period);
 
   Future<ScoreEntry> createScoreEntry({
     required int enrollmentId,
+    required int subjectId,
     required int componentId,
     required String period,
     required String label,
@@ -38,6 +41,7 @@ class GradesRepository {
   }) =>
       _api.createScoreEntry(
         enrollmentId: enrollmentId,
+        subjectId: subjectId,
         componentId: componentId,
         period: period,
         label: label,
@@ -59,14 +63,14 @@ class GradesRepository {
     required int enrollmentId,
     required int subjectId,
     required String period,
-    required double finalGrade,
+    required double numericGrade,
     required String remarks,
   }) =>
       _api.saveGrade(
         enrollmentId: enrollmentId,
         subjectId: subjectId,
         period: period,
-        finalGrade: finalGrade,
+        numericGrade: numericGrade,
         remarks: remarks,
       );
 }

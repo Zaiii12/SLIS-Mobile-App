@@ -1,4 +1,3 @@
-import '../models/student.dart';
 import 'students_api.dart';
 
 /// Thin pass-through over [StudentsApi]. Kept as its own layer (matching
@@ -9,7 +8,7 @@ class StudentsRepository {
 
   final StudentsApi _api;
 
-  Future<List<Student>> fetchStudents({String? search, String? status}) {
-    return _api.fetchStudents(search: search, status: status);
+  Future<StudentsPage> fetchStudents({String? search, String? status, int page = 1}) {
+    return _api.fetchStudents(search: search, status: status, page: page);
   }
 }

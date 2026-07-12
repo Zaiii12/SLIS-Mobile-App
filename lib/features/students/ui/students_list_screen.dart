@@ -53,39 +53,80 @@ class StudentsListScreen extends StatefulWidget {
 
 class _StudentsListScreenState extends State<StudentsListScreen> {
   final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
   _StudentFilter _filter = _StudentFilter.all;
   _LoadStatus _status = _LoadStatus.loading;
   List<Student> _students = const [];
   Timer? _debounce;
 
+  // Student-service paginates at 20/page (see StudentsApi) — without this,
+  // only the first page would ever be shown with no way to reach the rest.
+  int _page = 1;
+  bool _hasMore = false;
+  bool _loadingMore = false;
+
   @override
   void initState() {
     super.initState();
     _load();
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_status != _LoadStatus.loaded || !_hasMore || _loadingMore) return;
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      _loadMore();
+    }
   }
 
   Future<void> _load() async {
     setState(() => _status = _LoadStatus.loading);
     try {
-      final students = await widget.repository.fetchStudents(
+      final result = await widget.repository.fetchStudents(
         search: _searchController.text.trim(),
         status: _filter.statusParam,
+        page: 1,
       );
       if (!mounted) return;
       setState(() {
-        _students = students;
+        _students = result.students;
+        _page = 1;
+        _hasMore = result.hasMore;
         _status = _LoadStatus.loaded;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() => _status = _LoadStatus.error);
+    }
+  }
+
+  Future<void> _loadMore() async {
+    setState(() => _loadingMore = true);
+    try {
+      final nextPage = _page + 1;
+      final result = await widget.repository.fetchStudents(
+        search: _searchController.text.trim(),
+        status: _filter.statusParam,
+        page: nextPage,
+      );
+      if (!mounted) return;
+      setState(() {
+        _students = [..._students, ...result.students];
+        _page = nextPage;
+        _hasMore = result.hasMore;
+        _loadingMore = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingMore = false);
     }
   }
 
@@ -128,10 +169,19 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
       case _LoadStatus.loaded:
         if (_students.isEmpty) return const _EmptyState();
         return ListView.separated(
+          controller: _scrollController,
           padding: EdgeInsets.zero,
-          itemCount: _students.length,
+          itemCount: _students.length + (_hasMore ? 1 : 0),
           separatorBuilder: (_, _) => const Divider(height: 1, color: AppColors.rowDivider),
-          itemBuilder: (context, index) => _StudentRow(student: _students[index]),
+          itemBuilder: (context, index) {
+            if (index >= _students.length) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              );
+            }
+            return _StudentRow(student: _students[index]);
+          },
         );
     }
   }

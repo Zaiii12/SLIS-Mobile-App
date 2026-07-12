@@ -4,17 +4,24 @@ import '../storage/token_storage.dart';
 
 /// Attaches the stored access token as a Bearer header on every request.
 /// On a 401, calls [onUnauthorized] once (single-flight across concurrent
-/// 401s) to refresh the access token, then retries the original request.
-///
-/// Shared across all 4 service Dio clients so the same refresh flow and
-/// token source apply everywhere, even though only identity-service issues
-/// tokens.
+/// 401s) to refresh the access token, then retries the original request
+/// through [_dio] — the same client instance that issued it, so the retried
+/// request keeps that client's interceptors (this one) and, for
+/// identity-service, its cookie jar (needed for the httpOnly refresh
+/// cookie). One instance is constructed per service client in
+/// [DioClientFactory] (all sharing the same [TokenStorage]/[onUnauthorized]),
+/// rather than one instance shared across clients, specifically so each can
+/// hold this back-reference.
 class AuthInterceptor extends Interceptor {
   AuthInterceptor({
-    required this._tokenStorage,
-    required this._onUnauthorized,
-  });
+    required Dio dio,
+    required TokenStorage tokenStorage,
+    required Future<String?> Function() onUnauthorized,
+  })  : _dio = dio,
+        _tokenStorage = tokenStorage,
+        _onUnauthorized = onUnauthorized;
 
+  final Dio _dio;
   final TokenStorage _tokenStorage;
   final Future<String?> Function() _onUnauthorized;
 
@@ -55,11 +62,7 @@ class AuthInterceptor extends Interceptor {
     requestOptions.extra['retriedAfterRefresh'] = true;
 
     try {
-      final dio = Dio()
-        ..options.baseUrl = requestOptions.baseUrl
-        ..options.connectTimeout = requestOptions.connectTimeout
-        ..options.receiveTimeout = requestOptions.receiveTimeout;
-      final response = await dio.fetch(requestOptions);
+      final response = await _dio.fetch(requestOptions);
       handler.resolve(response);
     } on DioException catch (retryError) {
       handler.next(retryError);

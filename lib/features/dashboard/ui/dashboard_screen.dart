@@ -124,12 +124,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           final data = snapshot.data!;
+          final role = user?.role ?? '';
+          // super_admin/accounting bodies don't read live stats/attendance at
+          // all, so the notice would be noise for them.
+          final showsLiveData = role != 'super_admin' && role != 'accounting';
+          final isStale = showsLiveData && (!data.statsAreLive || !data.attendanceIsLive);
           return RefreshIndicator(
             onRefresh: _refresh,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(AppSpacing.dashboardScreenPadding),
-              child: _buildBodyForRole(user?.role ?? '', data, today),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (isStale) ...[
+                    const _StaleDataBanner(),
+                    const SizedBox(height: AppSpacing.interCardGap),
+                  ],
+                  _buildBodyForRole(role, data, today),
+                ],
+              ),
             ),
           );
         },
@@ -155,6 +169,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
       default:
         return _StaffBody(data: data, today: today);
     }
+  }
+}
+
+/// Shown when a stat or attendance fetch failed and the Dashboard is
+/// displaying hardcoded fallback figures instead of live data — without
+/// this, a fetch failure was previously invisible to the user (see
+/// DashboardRepository.fetch).
+class _StaleDataBanner extends StatelessWidget {
+  const _StaleDataBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.warningBg,
+        borderRadius: BorderRadius.circular(AppRadii.dashboardCard),
+        border: Border.all(color: AppColors.warningText.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.wifi_off, size: 16, color: AppColors.warningText),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              "Couldn't reach the server — showing sample figures. Pull to refresh to retry.",
+              style: GoogleFonts.dmSans(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.warningText),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

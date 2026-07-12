@@ -7,6 +7,7 @@ ScoreEntry _entry({required int component, required double score, required doubl
   return ScoreEntry(
     id: 0,
     enrollmentId: 1,
+    subjectId: 1,
     componentId: component,
     period: '1st_quarter',
     label: 'test',
@@ -57,6 +58,15 @@ void main() {
     expect(result.breakdown[1].avgPercent, isNull);
     expect(result.breakdown[1].weighted, 0);
     expect(result.finalGrade, closeTo(50, 0.001)); // only component 1 contributes
+  });
+
+  test('remarks is null when nothing has been scored yet', () {
+    const components = [GradingComponent(id: 1, name: 'Written Work', weight: 100)];
+
+    final result = computeGrade(components: components, entries: const []);
+
+    expect(result.finalGrade, 0);
+    expect(result.remarks, isNull);
   });
 
   test('averages multiple entries within the same component', () {

@@ -18,14 +18,22 @@ class ComputedGrade {
 
   final List<ComponentBreakdown> breakdown;
   final double finalGrade;
-  final String remarks;
+
+  /// Null when nothing has been scored yet (final_grade == 0 with no
+  /// entries anywhere) — matches the backend's own `/score-entries/compute/`
+  /// action (confirmed in `grading/views.py`), which returns `remarks: null`
+  /// in that case rather than labelling an ungraded student "failed".
+  final String? remarks;
 }
 
-/// Client-side grade computation per the RBAC handoff formula:
+/// Client-side grade computation per the RBAC handoff formula, mirroring
+/// the backend's own `/api/score-entries/compute/` action exactly (see
+/// `grading/views.py::compute_grade`) so the UI can show a live preview
+/// without a round trip while the teacher is still entering scores:
 ///   avg_pct (per component) = mean(score/max_score) × 100
 ///   weighted_contribution = avg_pct × (component.weight / 100)
 ///   final_grade = Σ weighted_contribution
-///   remarks = final_grade >= 75 ? "passed" : "failed"
+///   remarks = null if final_grade == 0, else "passed" if >= 75 else "failed"
 /// A component with no entries contributes 0 to the final grade but shows
 /// as ungraded (null avgPercent) in the breakdown.
 ComputedGrade computeGrade({
@@ -48,6 +56,6 @@ ComputedGrade computeGrade({
   return ComputedGrade(
     breakdown: breakdown,
     finalGrade: finalGrade,
-    remarks: finalGrade >= 75 ? 'passed' : 'failed',
+    remarks: finalGrade == 0 ? null : (finalGrade >= 75 ? 'passed' : 'failed'),
   );
 }

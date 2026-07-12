@@ -1,21 +1,29 @@
 import '../../advisory/models/section_advisory.dart';
+import 'grading_component.dart';
 
-/// A school-level-specific grading template, from
-/// `GET /api/grading-templates/`. Its [id] is passed to
-/// `GET /api/grading-components/?grading_template=<id>` to fetch weighted
-/// components for that level.
+/// A grading template with its weighted components embedded. Confirmed
+/// against `subjects/serializers.py`'s `grading_template_detail` (the shape
+/// returned nested inside a `Subject` response) and
+/// `grading/serializers.py`'s `GradingTemplateSerializer` (the shape at
+/// `GET /api/grading-templates/<id>/` directly) — both use
+/// `grading_template_id` as the pk and nest `components` inline, so there is
+/// no separate `/api/grading-components/?grading_template=<id>` fetch needed:
+/// a `Subject`'s own `grading_template_detail` already carries everything.
 class GradingTemplate {
-  const GradingTemplate({required this.id, required this.schoolLevel});
+  const GradingTemplate({required this.id, required this.schoolLevel, required this.components});
 
   factory GradingTemplate.fromJson(Map<String, dynamic> json) {
+    final rawComponents = json['components'] as List? ?? const [];
     return GradingTemplate(
-      id: json['id'] as int,
+      id: json['grading_template_id'] as int,
       schoolLevel: json['school_level'] as String? ?? '',
+      components: rawComponents.cast<Map<String, dynamic>>().map(GradingComponent.fromJson).toList(),
     );
   }
 
   final int id;
   final String schoolLevel;
+  final List<GradingComponent> components;
 }
 
 String schoolLevelToJson(SchoolLevel level) {

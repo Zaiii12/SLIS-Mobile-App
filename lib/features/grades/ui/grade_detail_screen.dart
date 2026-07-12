@@ -8,7 +8,6 @@ import '../data/grades_repository.dart';
 import '../models/grade_computation.dart';
 import '../models/grading_component.dart';
 import '../models/grading_period.dart';
-import '../models/grading_template.dart';
 import '../models/score_entry.dart';
 import '../models/subject.dart';
 import 'grade_colors.dart';
@@ -69,12 +68,11 @@ class _GradeDetailScreenState extends State<GradeDetailScreen> {
   Future<void> _load() async {
     setState(() => _status = _LoadStatus.loading);
     try {
-      final template = await widget.repository.fetchTemplateForLevel(
-        schoolLevelToJson(widget.section.schoolLevel),
-      );
-      final components = template == null ? <GradingComponent>[] : await widget.repository.fetchComponents(template.id);
+      final template = await widget.repository.fetchTemplateForSubject(widget.subject.id);
+      final components = template?.components ?? const <GradingComponent>[];
       final entries = await widget.repository.fetchScoreEntries(
         enrollmentId: widget.enrollmentId,
+        subjectId: widget.subject.id,
         period: widget.period.toJson(),
       );
       if (!mounted) return;
@@ -116,6 +114,7 @@ class _GradeDetailScreenState extends State<GradeDetailScreen> {
       } else {
         final created = await widget.repository.createScoreEntry(
           enrollmentId: widget.enrollmentId,
+          subjectId: widget.subject.id,
           componentId: component.id,
           period: widget.period.toJson(),
           label: draft.label.trim(),
@@ -182,15 +181,19 @@ class _GradeDetailScreenState extends State<GradeDetailScreen> {
 
   Future<void> _save() async {
     final computed = _computed;
-    if (computed == null) return;
+    final remarks = computed?.remarks;
+    // remarks is null only when nothing has been scored yet — the backend's
+    // `Grade.remarks` field has no meaningful value to write in that case
+    // (see grade_computation.dart), so Save has nothing valid to send.
+    if (computed == null || remarks == null) return;
     setState(() => _saving = true);
     try {
       await widget.repository.saveGrade(
         enrollmentId: widget.enrollmentId,
         subjectId: widget.subject.id,
         period: widget.period.toJson(),
-        finalGrade: computed.finalGrade,
-        remarks: computed.remarks,
+        numericGrade: computed.finalGrade,
+        remarks: remarks,
       );
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -249,7 +252,7 @@ class _GradeDetailScreenState extends State<GradeDetailScreen> {
               computed: _computed,
               saving: _saving,
               onCompute: _components.isEmpty ? null : _compute,
-              onSave: _computed == null ? null : _save,
+              onSave: _computed?.remarks == null ? null : _save,
             ),
           ],
         );
@@ -684,7 +687,7 @@ class _FinalGradeCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(AppRadii.pill),
                   ),
                   child: Text(
-                    computed!.remarks,
+                    computed!.remarks ?? 'Not yet graded',
                     style: GoogleFonts.dmSans(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,

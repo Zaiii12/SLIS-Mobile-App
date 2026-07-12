@@ -58,6 +58,21 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   ShellTab _selected = ShellTab.dashboard;
 
+  /// Tabs the user has actually switched to at least once. A tab's screen
+  /// isn't built (and so doesn't fire its `initState` fetch) until it's in
+  /// this set — an `IndexedStack` alone would build all 5 tabs up front
+  /// regardless of role visibility, firing e.g. Students/Attendance/Grades
+  /// fetches for an `accounting`/`guardian` user who can never navigate to
+  /// them. Dashboard is always visited first, so it seeds the set.
+  final Set<ShellTab> _visited = {ShellTab.dashboard};
+
+  void _select(ShellTab tab) {
+    setState(() {
+      _selected = tab;
+      _visited.add(tab);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final role = context.watch<AuthProvider>().user?.role ?? '';
@@ -73,18 +88,27 @@ class _AppShellState extends State<AppShell> {
         children: [
           DashboardScreen(
             repository: widget.dashboardRepository,
-            onNavigateToTab: (tab) => setState(() => _selected = tab),
+            onNavigateToTab: _select,
           ),
-          StudentsListScreen(repository: widget.studentsRepository),
-          AttendanceScreen(repository: widget.attendanceRepository),
-          GradesScreen(repository: widget.gradesRepository),
-          const MoreScreen(),
+          if (_visited.contains(ShellTab.students))
+            StudentsListScreen(repository: widget.studentsRepository)
+          else
+            const SizedBox.shrink(),
+          if (_visited.contains(ShellTab.attendance))
+            AttendanceScreen(repository: widget.attendanceRepository)
+          else
+            const SizedBox.shrink(),
+          if (_visited.contains(ShellTab.grades))
+            GradesScreen(repository: widget.gradesRepository)
+          else
+            const SizedBox.shrink(),
+          if (_visited.contains(ShellTab.more)) const MoreScreen() else const SizedBox.shrink(),
         ],
       ),
       bottomNavigationBar: ShellBottomNavBar(
         selected: selected,
         visibleTabs: visibleTabs,
-        onSelect: (tab) => setState(() => _selected = tab),
+        onSelect: _select,
       ),
     );
   }

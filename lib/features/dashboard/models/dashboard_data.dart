@@ -38,6 +38,8 @@ class DashboardData {
     required this.pendingEnrollment,
     required this.attendance,
     required this.announcements,
+    required this.statsAreLive,
+    required this.attendanceIsLive,
   });
 
   final String schoolYear;
@@ -47,4 +49,11 @@ class DashboardData {
   final int pendingEnrollment;
   final AttendanceBreakdown attendance;
   final List<Announcement> announcements;
+
+  /// False when `fetchStats`/`fetchTodayAttendance` failed and the values
+  /// above are the hardcoded fallback, not a live figure — the Dashboard UI
+  /// uses this to show a visible notice instead of silently presenting
+  /// sample data as real.
+  final bool statsAreLive;
+  final bool attendanceIsLive;
 }

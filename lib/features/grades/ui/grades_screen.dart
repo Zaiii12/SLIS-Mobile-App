@@ -39,20 +39,23 @@ class _GradesScreenState extends State<GradesScreen> {
   List<GradedStudent> _roster = const [];
 
   bool _initializedFromAdvisory = false;
+  SchoolLevel? _subjectsLoadedForLevel;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadSubjects();
-  }
-
-  Future<void> _loadSubjects() async {
+  /// Subjects are scoped by school level (`Subject.fromJson`'s
+  /// `school_level` filter), so unlike the old assumption of one global
+  /// subject list, they must be reloaded whenever the selected section's
+  /// school level differs from the last fetch (e.g. cycling from an
+  /// elementary section to a JHS one).
+  Future<void> _loadSubjectsIfNeeded(SchoolLevel schoolLevel) async {
+    if (_subjectsLoadedForLevel == schoolLevel) return;
     setState(() => _subjectsStatus = _LoadStatus.loading);
     try {
-      final subjects = await widget.repository.fetchSubjects();
+      final subjects = await widget.repository.fetchSubjects(schoolLevel: schoolLevel);
       if (!mounted) return;
       setState(() {
         _subjects = subjects;
+        _subjectIndex = 0;
+        _subjectsLoadedForLevel = schoolLevel;
         _subjectsStatus = _LoadStatus.loaded;
       });
       _loadRoster();
@@ -71,15 +74,20 @@ class _GradesScreenState extends State<GradesScreen> {
 
   Future<void> _loadRoster() async {
     final advisory = context.read<AdvisoryProvider>();
-    if (advisory.advisories.isEmpty || _subjects.isEmpty) return;
+    if (advisory.advisories.isEmpty) return;
     final section = advisory.advisories[_sectionIndex.clamp(0, advisory.advisories.length - 1)];
+    if (_subjectsLoadedForLevel != section.schoolLevel) {
+      _loadSubjectsIfNeeded(section.schoolLevel);
+      return;
+    }
+    if (_subjects.isEmpty) return;
     final subject = _subjects[_subjectIndex.clamp(0, _subjects.length - 1)];
     _initPeriodIfNeeded(section);
 
     setState(() => _rosterStatus = _LoadStatus.loading);
     try {
       final roster = await widget.repository.fetchGradedRoster(
-        sectionAdvisoryId: section.id,
+        section: section,
         subjectId: subject.id,
         period: _period!.toJson(),
       );
@@ -132,7 +140,10 @@ class _GradesScreenState extends State<GradesScreen> {
 
     if (!_initializedFromAdvisory && advisory.status == AdvisoryStatus.loaded) {
       _initializedFromAdvisory = true;
-      if (advisory.advisories.isNotEmpty && _subjects.isNotEmpty) _loadRoster();
+      if (advisory.advisories.isNotEmpty) {
+        final section = advisory.advisories[_sectionIndex.clamp(0, advisory.advisories.length - 1)];
+        _loadSubjectsIfNeeded(section.schoolLevel);
+      }
     }
 
     return Scaffold(
@@ -163,18 +174,19 @@ class _GradesScreenState extends State<GradesScreen> {
         child: NoSectionsAssignedState(),
       );
     }
+    final sections = advisory.advisories;
+    final section = sections[_sectionIndex.clamp(0, sections.length - 1)];
+
     if (_subjectsStatus == _LoadStatus.error) {
       return Padding(
         padding: const EdgeInsets.all(AppSpacing.dashboardScreenPadding),
-        child: NetworkErrorState(onRetry: _loadSubjects),
+        child: NetworkErrorState(onRetry: () => _loadSubjectsIfNeeded(section.schoolLevel)),
       );
     }
     if (_subjectsStatus == _LoadStatus.loading || _subjects.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final sections = advisory.advisories;
-    final section = sections[_sectionIndex.clamp(0, sections.length - 1)];
     final subject = _subjects[_subjectIndex.clamp(0, _subjects.length - 1)];
     final periods = periodsForSchoolLevel(section.schoolLevel);
     _period ??= periods.first;
@@ -363,15 +375,15 @@ class _StudentRow extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
               decoration: BoxDecoration(
-                color: gradeBackground(student.finalGrade),
+                color: gradeBackground(student.numericGrade),
                 borderRadius: BorderRadius.circular(AppRadii.pill),
               ),
               child: Text(
-                student.finalGrade?.toStringAsFixed(2) ?? 'Not graded',
+                student.numericGrade?.toStringAsFixed(2) ?? 'Not graded',
                 style: GoogleFonts.dmSans(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: gradeForeground(student.finalGrade),
+                  color: gradeForeground(student.numericGrade),
                 ),
               ),
             ),

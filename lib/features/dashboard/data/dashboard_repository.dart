@@ -46,14 +46,21 @@ class DashboardRepository {
 
     // Stats and attendance come from different endpoints (student-service vs.
     // enrollment-service) — fetch them independently so one failing endpoint
-    // (e.g. attendance/summary before its table exists) doesn't blank out
-    // stats that are already working.
+    // (e.g. attendance/summary for a role IsAdvisoryTeacherOrStaff blocks)
+    // doesn't blank out stats that are already working. Each failure falls
+    // back to sample data so the layout still renders, but callers must be
+    // told via statsAreLive/attendanceIsLive rather than silently treating
+    // the fallback as real — the old version had no error surface at all.
+    var statsAreLive = true;
     final stats = await _api.fetchStats().catchError((error, stackTrace) {
       debugPrint('DashboardApi.fetchStats failed, using sample data: $error\n$stackTrace');
+      statsAreLive = false;
       return _fallbackStats;
     });
+    var attendanceIsLive = true;
     final attendance = await _api.fetchTodayAttendance(now).catchError((error, stackTrace) {
       debugPrint('DashboardApi.fetchTodayAttendance failed, using sample data: $error\n$stackTrace');
+      attendanceIsLive = false;
       return _fallbackAttendance;
     });
 
@@ -65,6 +72,8 @@ class DashboardRepository {
       pendingEnrollment: stats.pendingEnrollment,
       attendance: attendance,
       announcements: _placeholderAnnouncements,
+      statsAreLive: statsAreLive,
+      attendanceIsLive: attendanceIsLive,
     );
   }
 }

@@ -48,8 +48,8 @@ class _AttendanceRosterScreenState extends State<AttendanceRosterScreen> {
     setState(() => _status = _LoadStatus.loading);
     try {
       final results = await Future.wait([
-        widget.repository.fetchRoster(widget.section.id),
-        widget.repository.fetchExisting(sectionAdvisoryId: widget.section.id, date: widget.date),
+        widget.repository.fetchRoster(widget.section),
+        widget.repository.fetchExisting(section: widget.section, date: widget.date),
       ]);
       final roster = results[0] as List<RosterEntry>;
       final existing = results[1] as Map<int, AttendanceStatus>;
