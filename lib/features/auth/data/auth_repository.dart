@@ -11,6 +11,11 @@ class AuthRepository {
   Future<User> login({required String identifier, required String password}) async {
     final result = await _authApi.login(identifier: identifier, password: password);
     await _tokenStorage.saveTokens(accessToken: result.accessToken);
+    await _tokenStorage.saveUser(
+      id: result.user.id,
+      role: result.user.role,
+      name: result.user.name,
+    );
     return result.user;
   }
 
@@ -30,15 +35,28 @@ class AuthRepository {
     return token != null;
   }
 
-  /// Validates a stored session by attempting a token refresh. No `/me/`
-  /// endpoint is confirmed yet, so refresh doubles as the validity check:
-  /// the identity-service rejects it if the underlying refresh token
-  /// (httpOnly cookie) is expired or missing.
-  Future<bool> restoreSession() async {
+  /// Validates a stored session by refreshing the access token, then
+  /// re-fetches the user profile via `GET /api/auth/users/<id>/` so role is
+  /// current as of this cold start (per the RBAC handoff: role can drift
+  /// server-side mid-session and only a re-fetch picks that up). Returns
+  /// null if the session can't be restored.
+  Future<User?> restoreSession() async {
     final token = await _tokenStorage.readAccessToken();
-    if (token == null) return false;
+    if (token == null) return null;
+
     final newToken = await refreshAccessToken();
-    return newToken != null;
+    if (newToken == null) return null;
+
+    final userId = await _tokenStorage.readUserId();
+    if (userId == null) return null;
+
+    try {
+      final user = await _authApi.fetchUser(userId);
+      await _tokenStorage.saveUser(id: user.id, role: user.role, name: user.name);
+      return user;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> logout() async {

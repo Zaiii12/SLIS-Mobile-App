@@ -45,11 +45,15 @@ class DashboardApi {
     final isoDate =
         '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
+    // /api/attendance/summary/ filters by date_from/date_to (a single day is
+    // date_from == date_to) and returns counts nested under `totals`, not as
+    // flat top-level fields.
     final response = await _enrollment.get(
       '/api/attendance/summary/',
       queryParameters: {'date_from': isoDate, 'date_to': isoDate},
     );
-    final totals = (response.data as Map<String, dynamic>)['totals'] as Map<String, dynamic>;
+    final data = response.data as Map<String, dynamic>;
+    final totals = data['totals'] as Map<String, dynamic>? ?? const {};
 
     return AttendanceBreakdown(
       present: totals['present'] as int? ?? 0,

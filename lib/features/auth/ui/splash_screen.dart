@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../attendance/data/attendance_repository.dart';
 import '../../dashboard/data/dashboard_repository.dart';
-import '../../dashboard/ui/dashboard_screen.dart';
+import '../../grades/data/grades_repository.dart';
+import '../../shell/ui/app_shell.dart';
+import '../../students/data/students_repository.dart';
 import '../state/auth_provider.dart';
 import 'login_screen.dart';
 
@@ -29,7 +32,12 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     final destination = authProvider.status == AuthStatus.authenticated
-        ? DashboardScreen(repository: context.read<DashboardRepository>())
+        ? AppShell(
+            dashboardRepository: context.read<DashboardRepository>(),
+            studentsRepository: context.read<StudentsRepository>(),
+            attendanceRepository: context.read<AttendanceRepository>(),
+            gradesRepository: context.read<GradesRepository>(),
+          )
         : const LoginScreen();
 
     Navigator.of(context).pushAndRemoveUntil(

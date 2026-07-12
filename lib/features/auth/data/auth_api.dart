@@ -56,4 +56,12 @@ class AuthApi {
       // Best-effort: proceed with clearing local state regardless.
     }
   }
+
+  /// Re-fetches the user profile, including current role. Per the RBAC
+  /// handoff, role can change server-side mid-session, so this is the only
+  /// way to pick that up short of a fresh login.
+  Future<User> fetchUser(String id) async {
+    final response = await _dio.get('/api/auth/users/$id/');
+    return User.fromJson(response.data as Map<String, dynamic>);
+  }
 }

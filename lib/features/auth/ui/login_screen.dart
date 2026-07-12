@@ -4,8 +4,11 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../state/auth_provider.dart';
+import '../../attendance/data/attendance_repository.dart';
 import '../../dashboard/data/dashboard_repository.dart';
-import '../../dashboard/ui/dashboard_screen.dart';
+import '../../grades/data/grades_repository.dart';
+import '../../shell/ui/app_shell.dart';
+import '../../students/data/students_repository.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -38,9 +41,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (success && mounted) {
       final dashboardRepository = context.read<DashboardRepository>();
+      final studentsRepository = context.read<StudentsRepository>();
+      final attendanceRepository = context.read<AttendanceRepository>();
+      final gradesRepository = context.read<GradesRepository>();
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (_) => DashboardScreen(repository: dashboardRepository),
+          builder: (_) => AppShell(
+            dashboardRepository: dashboardRepository,
+            studentsRepository: studentsRepository,
+            attendanceRepository: attendanceRepository,
+            gradesRepository: gradesRepository,
+          ),
         ),
         (route) => false,
       );
