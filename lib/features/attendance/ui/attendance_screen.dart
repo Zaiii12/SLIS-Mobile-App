@@ -90,6 +90,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       body: RefreshIndicator(
         onRefresh: _loadSummary,
         child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(AppSpacing.dashboardScreenPadding),
           children: [
             _buildSummaryCard(),
@@ -147,7 +148,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 ),
                 Text(
                   DateFormat('MMMM d').format(_today),
-                  style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted3),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: AppColors.textMuted3,
+                  ),
                 ),
               ],
             ),
@@ -187,7 +191,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   children: [
                     Text(
                       'Attendance rate',
-                      style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted3),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        color: AppColors.textMuted3,
+                      ),
                     ),
                     Text(
                       '${summary.ratePercent}%',
@@ -206,7 +213,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     value: summary.ratePercent / 100,
                     minHeight: 6,
                     backgroundColor: AppColors.cardBorder,
-                    valueColor: const AlwaysStoppedAnimation(AppColors.successFill),
+                    valueColor: const AlwaysStoppedAnimation(
+                      AppColors.successFill,
+                    ),
                   ),
                 ),
               ],
@@ -225,7 +234,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       case AdvisoryStatus.error:
         return NetworkErrorState(onRetry: () => advisory.load());
       case AdvisoryStatus.loaded:
-        if (advisory.hasNoSectionsAssigned) return const NoSectionsAssignedState();
+        if (advisory.hasNoSectionsAssigned)
+          return const NoSectionsAssignedState();
         return Container(
           decoration: BoxDecoration(
             color: AppColors.cardWhite,
@@ -269,14 +279,24 @@ class _MiniStat extends StatelessWidget {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
-        decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(10),
+        ),
         child: Column(
           children: [
             Text(
               '$value',
-              style: GoogleFonts.dmSans(fontSize: 15, fontWeight: FontWeight.w700, color: textColor),
+              style: GoogleFonts.dmSans(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+              ),
             ),
-            Text(label, style: GoogleFonts.dmSans(fontSize: 10, color: labelColor)),
+            Text(
+              label,
+              style: GoogleFonts.dmSans(fontSize: 10, color: labelColor),
+            ),
           ],
         ),
       ),
@@ -317,7 +337,11 @@ class _SectionRow extends StatelessWidget {
                 color: AppColors.dangerBg2,
                 borderRadius: BorderRadius.circular(AppRadii.iconChipLarge),
               ),
-              child: const Icon(Icons.groups_outlined, size: 15, color: AppColors.primary),
+              child: const Icon(
+                Icons.groups_outlined,
+                size: 15,
+                color: AppColors.primary,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
