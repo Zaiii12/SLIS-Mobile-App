@@ -162,6 +162,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 'super_admin':
         return const _SuperAdminBody();
       case 'registrar':
+        return _RegistrarBody(data: data, today: today);
       case 'admin':
         return _StaffBody(data: data, today: today);
       case 'accounting':
@@ -305,6 +306,61 @@ class _StaffBody extends StatelessWidget {
         PendingEnrollmentCard(value: data.pendingEnrollment),
         const SizedBox(height: AppSpacing.interCardGap),
         const FinancialSnapshotCard(),
+        const SizedBox(height: AppSpacing.interCardGap),
+        AttendanceCard(attendance: data.attendance, date: today),
+        const SizedBox(height: AppSpacing.interCardGap),
+        AnnouncementsCard(announcements: data.announcements),
+      ],
+    );
+  }
+}
+
+/// Registrar sees the same academic/enrollment stats as admin, but no
+/// billing content — the backend's BILLING_ROLES (super_admin/admin/
+/// accounting) excludes registrar entirely, confirmed in billing/views.py
+/// and the admin-portal sidebar, which never surfaces Financial Snapshot or
+/// Invoices/Payments to registrar.
+class _RegistrarBody extends StatelessWidget {
+  const _RegistrarBody({required this.data, required this.today});
+
+  final DashboardData data;
+  final DateTime today;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const NeedsAttentionCard(
+          items: [
+            AttentionItem(icon: Icons.people_outline, title: 'Pending enrollment approvals', count: 34),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.interCardGap),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: StatCard(
+                label: 'Active Students',
+                value: '${data.activeStudents}',
+                icon: Icons.groups_outlined,
+                pill: StatPill(label: 'as of today', background: AppColors.neutralPillBg, textColor: AppColors.neutralPillText),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.statGridGap),
+            Expanded(
+              child: StatCard(
+                label: 'Enrolled This Year',
+                value: '${data.enrolledThisYear}',
+                icon: Icons.calendar_month_outlined,
+                pill: StatPill(label: data.schoolYear, background: AppColors.neutralPillBg, textColor: AppColors.neutralPillText),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.statGridGap),
+        PendingEnrollmentCard(value: data.pendingEnrollment),
         const SizedBox(height: AppSpacing.interCardGap),
         AttendanceCard(attendance: data.attendance, date: today),
         const SizedBox(height: AppSpacing.interCardGap),

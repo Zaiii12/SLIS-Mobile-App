@@ -5,10 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_theme.dart';
 
-/// Registrar/admin/super_admin/accounting card with a blur toggle over the
-/// peso amounts, per the design mock. Financial data is deferred per the
-/// handoff (Billing out of scope this sprint), so figures are placeholders
-/// until a real endpoint exists.
+/// Admin/accounting card with a blur toggle over the peso amounts, per the
+/// design mock. Registrar is excluded — the backend's BILLING_ROLES
+/// (super_admin/admin/accounting) never includes registrar. Financial data
+/// is deferred per the handoff (Billing out of scope this sprint), so
+/// figures are placeholders until a real endpoint exists.
 class FinancialSnapshotCard extends StatefulWidget {
   const FinancialSnapshotCard({
     super.key,

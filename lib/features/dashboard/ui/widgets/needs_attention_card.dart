@@ -11,8 +11,10 @@ class AttentionItem {
   final int count;
 }
 
-/// Registrar/admin/super_admin card surfacing action items with badge
-/// counts (e.g. unpaid invoices, pending enrollment approvals). Values are
+/// Admin/super_admin/registrar card surfacing action items with badge
+/// counts (e.g. unpaid invoices, pending enrollment approvals). Registrar's
+/// item list excludes billing-related items (e.g. unpaid invoices) since
+/// registrar isn't a BILLING_ROLES member on the backend. Values are
 /// placeholders — no dedicated endpoint exists yet per the handoff
 /// (dashboard data is deferred this sprint).
 class NeedsAttentionCard extends StatelessWidget {
