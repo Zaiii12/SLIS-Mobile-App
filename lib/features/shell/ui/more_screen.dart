@@ -2,17 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/auth/roles.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/state/auth_provider.dart';
 import '../../auth/ui/login_screen.dart';
 
 const _roleLabels = {
-  'teacher': 'Teacher',
-  'registrar': 'Registrar',
-  'admin': 'Admin',
-  'super_admin': 'Super Admin',
-  'accounting': 'Accounting',
-  'guardian': 'Guardian',
+  roleTeacher: 'Teacher',
+  roleRegistrar: 'Registrar',
+  roleAdmin: 'Admin',
+  roleSuperAdmin: 'Super Admin',
+  roleAccounting: 'Accounting',
+  roleGuardian: 'Guardian',
 };
 
 /// The "More" tab: profile summary, settings stubs, app info, and log out.

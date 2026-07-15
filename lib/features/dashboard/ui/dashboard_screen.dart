@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/auth/roles.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../advisory/state/advisory_provider.dart';
 import '../../auth/state/auth_provider.dart';
@@ -127,7 +128,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           final role = user?.role ?? '';
           // super_admin/accounting bodies don't read live stats/attendance at
           // all, so the notice would be noise for them.
-          final showsLiveData = role != 'super_admin' && role != 'accounting';
+          final showsLiveData = role != roleSuperAdmin && role != roleAccounting;
           final isStale = showsLiveData && (!data.statsAreLive || !data.attendanceIsLive);
           return RefreshIndicator(
             onRefresh: _refresh,
@@ -153,19 +154,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildBodyForRole(String role, DashboardData data, DateTime today) {
     switch (role) {
-      case 'teacher':
+      case roleTeacher:
         return _TeacherBody(
           data: data,
           onOpenAttendance: () => widget.onNavigateToTab(ShellTab.attendance),
           onOpenGrades: () => widget.onNavigateToTab(ShellTab.grades),
         );
-      case 'super_admin':
+      case roleSuperAdmin:
         return const _SuperAdminBody();
-      case 'registrar':
+      case roleRegistrar:
         return _RegistrarBody(data: data, today: today);
-      case 'admin':
+      case roleAdmin:
         return _StaffBody(data: data, today: today);
-      case 'accounting':
+      case roleAccounting:
         return const _AccountingBody();
       default:
         return _StaffBody(data: data, today: today);
@@ -404,6 +405,8 @@ class _SuperAdminBody extends StatelessWidget {
         ),
         SizedBox(height: AppSpacing.interCardGap),
         StaffOverviewCard(teacherCount: 42, onLeaveCount: 3, noAdviserCount: 1),
+        SizedBox(height: AppSpacing.interCardGap),
+        FinancialSnapshotCard(),
         SizedBox(height: AppSpacing.interCardGap),
         NeedsAttentionCard(
           items: [

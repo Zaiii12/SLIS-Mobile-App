@@ -1,15 +1,11 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/auth/roles.dart';
 import '../../advisory/state/advisory_provider.dart';
 import '../data/auth_repository.dart';
 import '../models/user.dart';
 
 enum AuthStatus { unknown, authenticating, authenticated, unauthenticated }
-
-/// Roles that see Attendance/Grades and therefore need the shared
-/// [AdvisoryProvider] populated. Matches the RBAC handoff's access matrix —
-/// accounting and guardian have no advisory-scoped screens.
-const _rolesNeedingAdvisory = {'teacher', 'registrar', 'admin', 'super_admin'};
 
 class AuthProvider extends ChangeNotifier {
   AuthProvider({
@@ -81,8 +77,8 @@ class AuthProvider extends ChangeNotifier {
   /// have Attendance/Grades access. Teacher requests are scoped to their
   /// own sections; staff roles get every section school-wide.
   void _loadAdvisoryFor(User user) {
-    if (!_rolesNeedingAdvisory.contains(user.role)) return;
-    final teacherUserId = user.role == 'teacher' ? int.tryParse(user.id) : null;
+    if (!hasAnyRole(user.role, gradeRoles)) return;
+    final teacherUserId = user.role == roleTeacher ? int.tryParse(user.id) : null;
     _advisoryProvider.load(teacherUserId: teacherUserId);
   }
 }

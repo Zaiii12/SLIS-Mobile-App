@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/auth/roles.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/ui/attendance_screen.dart';
 import '../../auth/state/auth_provider.dart';
@@ -15,22 +16,19 @@ import 'widgets/shell_bottom_nav_bar.dart';
 
 enum ShellTab { dashboard, students, attendance, grades, more }
 
-/// Tabs visible per role, in nav-bar order. `accounting` sees Dashboard and
-/// More only; `guardian` sees nothing until backend scoping ships (handled
-/// by [_visibleTabsForRole] returning an empty-feature list upstream of
-/// this widget in practice, but kept here too as a defensive default).
+/// Tabs visible per role, in nav-bar order. Students is read access for any
+/// authenticated role (matching the backend's `IsAdminRegistrarOrReadOnly`),
+/// so every role — including `accounting` — sees Dashboard+Students+More;
+/// only `gradeRoles` additionally get Attendance+Grades. Unknown roles
+/// (including `guardian`, which is dead on the backend) fall back to the
+/// same Dashboard+Students+More default.
 List<ShellTab> _visibleTabsForRole(String role) {
-  switch (role) {
-    case 'accounting':
-      return [ShellTab.dashboard, ShellTab.more];
-    case 'teacher':
-    case 'registrar':
-    case 'admin':
-    case 'super_admin':
-      return ShellTab.values;
-    default:
-      return [ShellTab.dashboard, ShellTab.more];
+  final tabs = [ShellTab.dashboard, ShellTab.students];
+  if (hasAnyRole(role, gradeRoles)) {
+    tabs.addAll([ShellTab.attendance, ShellTab.grades]);
   }
+  tabs.add(ShellTab.more);
+  return tabs;
 }
 
 /// Owns the single persistent bottom nav bar and swaps tab bodies via
