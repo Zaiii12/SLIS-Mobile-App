@@ -63,4 +63,11 @@ class AuthRepository {
     await _authApi.logout();
     await _tokenStorage.clear();
   }
+
+  /// Clears stored tokens/user without calling `/api/auth/logout/` — for use
+  /// when the backend has already invalidated the session server-side (e.g.
+  /// superseded by another login), so that call would just fail with 401.
+  Future<void> clearLocalSession() async {
+    await _tokenStorage.clear();
+  }
 }

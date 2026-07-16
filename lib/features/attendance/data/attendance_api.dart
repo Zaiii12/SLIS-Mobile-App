@@ -40,7 +40,9 @@ class AttendanceApi {
   /// `SectionAdvisory` is really just a saved (school_year, school_level,
   /// grade_level, section[, strand]) tuple (see `teacher_student_ids()` in
   /// the backend's permissions module), so the roster is scoped by matching
-  /// those fields directly via `EnrollmentFilter`.
+  /// those fields directly via `EnrollmentFilter`. Only `enrolled` students
+  /// belong on the attendance roster — `pending` enrollments haven't been
+  /// finalized yet and shouldn't be markable.
   Future<List<RosterEntry>> fetchRoster(SectionAdvisory section) async {
     final response = await _enrollment.get(
       '/api/enrollments/',
@@ -50,6 +52,7 @@ class AttendanceApi {
         'grade_level': section.gradeLevel,
         'section': section.section,
         if (section.strand != null) 'strand': section.strand,
+        'enrollment_status': 'enrolled',
       },
     );
     final data = response.data;

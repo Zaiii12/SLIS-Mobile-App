@@ -48,7 +48,8 @@ class GradesApi {
   /// call Attendance uses, scoped by the section's own fields since there's
   /// no `section_advisory` filter) and the `Grade` rows for this
   /// subject/period (unfiltered by section — matched client-side by
-  /// `enrollmentId`), then joins them.
+  /// `enrollmentId`), then joins them. Only `enrolled` students are graded —
+  /// `pending` enrollments haven't been finalized yet.
   Future<List<GradedStudent>> fetchGradedRoster({
     required SectionAdvisory section,
     required int subjectId,
@@ -62,6 +63,7 @@ class GradesApi {
         'grade_level': section.gradeLevel,
         'section': section.section,
         if (section.strand != null) 'strand': section.strand,
+        'enrollment_status': 'enrolled',
         'page_size': 500,
       },
     );

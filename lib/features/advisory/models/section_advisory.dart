@@ -51,4 +51,23 @@ class SectionAdvisory {
 
   /// Display label, e.g. "Grade 6 - Faith".
   String get displayName => '$gradeLevel - $section';
+
+  /// Filters [advisories] down to only those matching the latest
+  /// `school_year` present in the list (plain string comparison — school
+  /// year strings are zero-padded 4-digit years like "2025-2026", which
+  /// sort correctly lexicographically). Advisories carrying an empty
+  /// `school_year` are excluded from the comparison but kept if no other
+  /// school year is present.
+  ///
+  /// The API intentionally returns every advisory for a teacher across all
+  /// school years (see [AdvisoryApi.fetchSectionAdvisories]) since the web
+  /// and mobile apps have historically disagreed on which calendar month a
+  /// new school year starts. Picking the max school_year string client-side
+  /// avoids depending on any single cutover-month rule.
+  static List<SectionAdvisory> forMostRecentSchoolYear(List<SectionAdvisory> advisories) {
+    final withYear = advisories.where((a) => a.schoolYear.isNotEmpty);
+    if (withYear.isEmpty) return advisories;
+    final latest = withYear.map((a) => a.schoolYear).reduce((a, b) => a.compareTo(b) >= 0 ? a : b);
+    return advisories.where((a) => a.schoolYear == latest).toList();
+  }
 }

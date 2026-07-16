@@ -21,11 +21,14 @@ class DioClientFactory {
   DioClientFactory({
     required TokenStorage tokenStorage,
     required Future<String?> Function() onUnauthorized,
+    required void Function() onSessionExpired,
   })  : _tokenStorage = tokenStorage,
-        _onUnauthorized = onUnauthorized;
+        _onUnauthorized = onUnauthorized,
+        _onSessionExpired = onSessionExpired;
 
   final TokenStorage _tokenStorage;
   final Future<String?> Function() _onUnauthorized;
+  final void Function() _onSessionExpired;
   final CookieJar _identityCookieJar = CookieJar();
 
   late final Dio identity = _build(ApiConfig.identityBaseUrl, withCookies: true);
@@ -48,6 +51,7 @@ class DioClientFactory {
       dio: dio,
       tokenStorage: _tokenStorage,
       onUnauthorized: _onUnauthorized,
+      onSessionExpired: _onSessionExpired,
     ));
     return dio;
   }

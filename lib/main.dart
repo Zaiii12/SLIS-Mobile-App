@@ -11,6 +11,7 @@ import 'features/attendance/data/attendance_repository.dart';
 import 'features/auth/data/auth_api.dart';
 import 'features/auth/data/auth_repository.dart';
 import 'features/auth/state/auth_provider.dart';
+import 'features/auth/ui/login_screen.dart';
 import 'features/auth/ui/splash_screen.dart';
 import 'features/dashboard/data/dashboard_api.dart';
 import 'features/dashboard/data/dashboard_repository.dart';
@@ -18,6 +19,11 @@ import 'features/grades/data/grades_api.dart';
 import 'features/grades/data/grades_repository.dart';
 import 'features/students/data/students_api.dart';
 import 'features/students/data/students_repository.dart';
+
+/// Lets code with no [BuildContext] (the Dio interceptor, running deep
+/// inside a repository call) force navigation back to [LoginScreen] when a
+/// session is invalidated server-side.
+final navigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
   final tokenStorage = TokenStorage();
@@ -27,9 +33,36 @@ void main() {
   // resolved via a late-bound closure to break the cycle without a DI
   // framework.
   late final AuthRepository authRepository;
+
+  // The factory builds 4 independent Dio clients, each with its own
+  // AuthInterceptor, so a single request storm hitting several services at
+  // once could call this more than once — guard so only the first actually
+  // navigates/clears state.
+  var sessionExpiryHandled = false;
+  void onSessionExpired() {
+    if (sessionExpiryHandled) return;
+    sessionExpiryHandled = true;
+
+    Future<void> run() async {
+      final context = navigatorKey.currentContext;
+      if (context == null) return;
+      await context.read<AuthProvider>().forceLogout();
+
+      final navigator = navigatorKey.currentState;
+      if (navigator == null) return;
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+
+    run().whenComplete(() => sessionExpiryHandled = false);
+  }
+
   final dioClientFactory = DioClientFactory(
     tokenStorage: tokenStorage,
     onUnauthorized: () => authRepository.refreshAccessToken(),
+    onSessionExpired: onSessionExpired,
   );
   authRepository = AuthRepository(
     authApi: AuthApi(dioClientFactory.identity),
@@ -106,6 +139,7 @@ class SlisMobileApp extends StatelessWidget {
         Provider.value(value: gradesRepository),
       ],
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         title: 'ASIA',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,

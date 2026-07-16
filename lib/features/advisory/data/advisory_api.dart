@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 
-import '../../../core/utils/school_year.dart';
 import '../models/section_advisory.dart';
 
 /// Calls enrollment-service's `/api/section-advisories/` — read-open to any
@@ -12,19 +11,27 @@ class AdvisoryApi {
 
   final Dio _enrollment;
 
+  /// Deliberately does not filter by `school_year` server-side: the web
+  /// admin portal and this app have each computed "current school year"
+  /// with different cutover-month rules at different times, so a teacher's
+  /// advisory row can be saved under a school_year string this app doesn't
+  /// expect, causing exact-match filtering to silently return zero rows.
+  /// Instead we fetch every advisory for the teacher and let
+  /// [SectionAdvisory.forMostRecentSchoolYear] pick the latest school year
+  /// client-side.
   Future<List<SectionAdvisory>> fetchSectionAdvisories({int? teacherUserId}) async {
     final response = await _enrollment.get(
       '/api/section-advisories/',
       queryParameters: {
         if (teacherUserId != null) 'teacher_user_id': teacherUserId,
-        'school_year': SchoolYear.current(),
       },
     );
     final data = response.data;
     final results = data is Map<String, dynamic> ? data['results'] as List? : data as List?;
-    return (results ?? [])
+    final advisories = (results ?? [])
         .cast<Map<String, dynamic>>()
         .map(SectionAdvisory.fromJson)
         .toList();
+    return SectionAdvisory.forMostRecentSchoolYear(advisories);
   }
 }

@@ -73,6 +73,19 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Clears local session state after the backend has already invalidated
+  /// it (e.g. superseded by a login on another device) — unlike [logout],
+  /// this skips the `/api/auth/logout/` call, since the stored token is
+  /// already rejected server-side and calling it would just 401 again.
+  Future<void> forceLogout() async {
+    if (_status != AuthStatus.authenticated) return;
+    await _authRepository.clearLocalSession();
+    _advisoryProvider.clear();
+    _user = null;
+    _status = AuthStatus.unauthenticated;
+    notifyListeners();
+  }
+
   /// Kicks off (without awaiting) the shared advisory fetch for roles that
   /// have Attendance/Grades access. Teacher requests are scoped to their
   /// own sections; staff roles get every section school-wide.

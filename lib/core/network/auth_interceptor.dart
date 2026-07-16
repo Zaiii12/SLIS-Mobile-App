@@ -17,13 +17,16 @@ class AuthInterceptor extends Interceptor {
     required Dio dio,
     required TokenStorage tokenStorage,
     required Future<String?> Function() onUnauthorized,
+    required void Function() onSessionExpired,
   })  : _dio = dio,
         _tokenStorage = tokenStorage,
-        _onUnauthorized = onUnauthorized;
+        _onUnauthorized = onUnauthorized,
+        _onSessionExpired = onSessionExpired;
 
   final Dio _dio;
   final TokenStorage _tokenStorage;
   final Future<String?> Function() _onUnauthorized;
+  final void Function() _onSessionExpired;
 
   Future<String?>? _refreshInFlight;
 
@@ -53,6 +56,12 @@ class AuthInterceptor extends Interceptor {
     _refreshInFlight = null;
 
     if (newAccessToken == null) {
+      // Refresh failed — most commonly because this session was superseded
+      // by a login elsewhere (single-session-per-platform enforcement) or
+      // the refresh token expired. Either way, the stored token is no
+      // longer usable, so force the user back to the login screen instead
+      // of leaving them stuck on a screen that will keep 401ing silently.
+      _onSessionExpired();
       handler.next(err);
       return;
     }
