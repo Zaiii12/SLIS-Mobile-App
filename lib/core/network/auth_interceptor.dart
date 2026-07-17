@@ -46,8 +46,18 @@ class AuthInterceptor extends Interceptor {
   Future<void> onError(DioException err, ErrorInterceptorHandler handler) async {
     final isUnauthorized = err.response?.statusCode == 401;
     final alreadyRetried = err.requestOptions.extra['retriedAfterRefresh'] == true;
+    // The refresh call itself 401ing (session superseded) is a terminal
+    // failure, not something to refresh-and-retry — retrying it would just
+    // call back into this same failing endpoint recursively.
+    final isRefreshCall = err.requestOptions.path == '/api/auth/refresh/';
 
     if (!isUnauthorized || alreadyRetried) {
+      handler.next(err);
+      return;
+    }
+
+    if (isRefreshCall) {
+      _onSessionExpired();
       handler.next(err);
       return;
     }
