@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -104,7 +106,7 @@ void main() {
   );
 }
 
-class SlisMobileApp extends StatelessWidget {
+class SlisMobileApp extends StatefulWidget {
   const SlisMobileApp({
     super.key,
     required this.authRepository,
@@ -123,20 +125,73 @@ class SlisMobileApp extends StatelessWidget {
   final GradesRepository gradesRepository;
 
   @override
+  State<SlisMobileApp> createState() => _SlisMobileAppState();
+}
+
+/// Session invalidation is otherwise only discovered reactively — via a 401
+/// on some real API call (see [AuthInterceptor]) — which never fires while
+/// the user is idle on a tab that isn't making requests (`AppShell` keeps
+/// all visited tabs alive in an `IndexedStack`, so merely sitting on one
+/// triggers nothing further). Re-validating whenever the app comes back to
+/// the foreground closes that gap: e.g. logging in elsewhere while this app
+/// is backgrounded is now caught as soon as the user returns to it, instead
+/// of only on the next unrelated request.
+class _SlisMobileAppState extends State<SlisMobileApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+
+    final authProvider = navigatorKey.currentContext?.read<AuthProvider>();
+    if (authProvider == null || authProvider.status != AuthStatus.authenticated) return;
+
+    unawaited(_revalidateSession());
+  }
+
+  Future<void> _revalidateSession() async {
+    final newToken = await widget.authRepository.refreshAccessToken();
+    if (newToken != null) return;
+
+    // Refresh failed on resume — most likely this session was superseded by
+    // a login elsewhere while the app was backgrounded. Route through the
+    // same forced-logout path the 401 interceptor uses.
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+    await context.read<AuthProvider>().forceLogout();
+
+    final navigator = navigatorKey.currentState;
+    navigator?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider.value(value: advisoryProvider),
+        ChangeNotifierProvider.value(value: widget.advisoryProvider),
         ChangeNotifierProvider(
           create: (_) => AuthProvider(
-            authRepository: authRepository,
-            advisoryProvider: advisoryProvider,
+            authRepository: widget.authRepository,
+            advisoryProvider: widget.advisoryProvider,
           ),
         ),
-        Provider.value(value: dashboardRepository),
-        Provider.value(value: studentsRepository),
-        Provider.value(value: attendanceRepository),
-        Provider.value(value: gradesRepository),
+        Provider.value(value: widget.dashboardRepository),
+        Provider.value(value: widget.studentsRepository),
+        Provider.value(value: widget.attendanceRepository),
+        Provider.value(value: widget.gradesRepository),
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,

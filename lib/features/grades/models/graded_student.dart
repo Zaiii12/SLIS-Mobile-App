@@ -59,7 +59,7 @@ class Grade {
     return Grade(
       id: json['grade_id'] as int,
       enrollmentId: (enrollmentDetail?['enrollment_id'] as int?) ?? json['enrollment'] as int,
-      numericGrade: (json['numeric_grade'] as num?)?.toDouble(),
+      numericGrade: _parseNumericGrade(json['numeric_grade']),
       remarks: json['remarks'] as String?,
     );
   }
@@ -68,4 +68,13 @@ class Grade {
   final int enrollmentId;
   final double? numericGrade;
   final String? remarks;
+}
+
+/// DRF's `DecimalField` serializes `numeric_grade` as a string (e.g.
+/// `"85.00"`) by default (`coerce_to_string` defaults to `True`), not a JSON
+/// number, so this must parse both a `String` and a `num` for safety.
+double? _parseNumericGrade(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value.toDouble();
+  return double.parse(value as String);
 }

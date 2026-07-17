@@ -68,6 +68,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
     if (marked == true) {
       setState(() => _markedSectionIds.add(section.id));
+      _loadSummary();
     }
   }
 
