@@ -15,6 +15,7 @@ class Student {
     required this.birthDate,
     required this.sex,
     required this.address,
+    this.updatedAt,
   });
 
   factory Student.fromJson(Map<String, dynamic> json) {
@@ -29,6 +30,7 @@ class Student {
       birthDate: json['birth_date'] as String? ?? '',
       sex: json['sex'] as String? ?? '',
       address: json['current_address'] as String? ?? '',
+      updatedAt: json['updated_at'] as String?,
     );
   }
 
@@ -42,6 +44,53 @@ class Student {
   final String birthDate;
   final String sex;
   final String address;
+
+  /// Server-side `updated_at` timestamp, echoed back on PATCH for
+  /// student-service's optimistic-locking check (see StudentSerializer.validate
+  /// in ASIA's student-service) — prevents silently clobbering a concurrent edit.
+  final String? updatedAt;
+
+  /// Fields the backend actually allows registrar/admin to write
+  /// (`StudentSerializer` — `student_id`/`lrn`/`updated_at` are read-only or
+  /// system-managed and intentionally excluded here).
+  Map<String, dynamic> toEditJson() {
+    return {
+      'first_name': firstName,
+      'middle_name': middleName.isEmpty ? null : middleName,
+      'last_name': lastName,
+      'suffix': suffix,
+      'status': status,
+      'birth_date': birthDate,
+      'sex': sex,
+      'current_address': address,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    };
+  }
+
+  Student copyWith({
+    String? firstName,
+    String? middleName,
+    String? lastName,
+    String? suffix,
+    String? status,
+    String? birthDate,
+    String? sex,
+    String? address,
+  }) {
+    return Student(
+      id: id,
+      firstName: firstName ?? this.firstName,
+      middleName: middleName ?? this.middleName,
+      lastName: lastName ?? this.lastName,
+      suffix: suffix ?? this.suffix,
+      lrn: lrn,
+      status: status ?? this.status,
+      birthDate: birthDate ?? this.birthDate,
+      sex: sex ?? this.sex,
+      address: address ?? this.address,
+      updatedAt: updatedAt,
+    );
+  }
 
   String get name {
     final parts = [

@@ -17,6 +17,8 @@ class GradesRepository {
   }) =>
       _api.fetchSubjects(schoolLevel: schoolLevel, gradeLevel: gradeLevel, strand: strand);
 
+  Future<List<Subject>> fetchAllSubjects() => _api.fetchAllSubjects();
+
   Future<GradingTemplate?> fetchTemplateForSubject(int subjectId) =>
       _api.fetchTemplateForSubject(subjectId);
 
@@ -26,6 +28,9 @@ class GradesRepository {
     required String period,
   }) =>
       _api.fetchGradedRoster(section: section, subjectId: subjectId, period: period);
+
+  Future<List<Grade>> fetchGradesForEnrollment(int enrollmentId) =>
+      _api.fetchGradesForEnrollment(enrollmentId);
 
   Future<List<ScoreEntry>> fetchScoreEntries({
     required int enrollmentId,

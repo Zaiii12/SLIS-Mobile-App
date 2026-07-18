@@ -8,6 +8,7 @@ import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/ui/widgets/attendance_empty_states.dart';
 import '../../grades/data/grades_repository.dart';
 import '../../grades/models/grading_template.dart' show schoolLevelToJson;
+import '../../grades/models/subject.dart';
 import '../data/teachers_repository.dart';
 import '../models/teacher.dart';
 import 'monitoring_sections_screen.dart';
@@ -18,6 +19,19 @@ enum _LoadStatus { loading, loaded, error }
 /// dropdowns, distinct from any real `school_level`/`grade_level` string.
 const _kAllSchoolLevels = 'all';
 const _kAllGradeLevels = 'all';
+
+/// Orders grade-level labels like "Grade 2"/"Grade 10" numerically by the
+/// leading number (falls back to plain string comparison for non-numeric
+/// labels like "Kindergarten"/"Nursery", which don't currently appear here
+/// since [_subjects] only ever covers Elementary/JHS/SHS).
+int _compareGradeLevels(String a, String b) {
+  final numA = int.tryParse(RegExp(r'\d+').firstMatch(a)?.group(0) ?? '');
+  final numB = int.tryParse(RegExp(r'\d+').firstMatch(b)?.group(0) ?? '');
+  if (numA != null && numB != null) return numA.compareTo(numB);
+  if (numA != null) return -1;
+  if (numB != null) return 1;
+  return a.compareTo(b);
+}
 
 /// Admin/super_admin-only tab (see [ShellTab.monitoring]): browse
 /// teacher → section → attendance/grades, replacing the separate
@@ -49,11 +63,16 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
   List<Teacher> _teachers = const [];
 
   /// Every section school-wide (staff-mode `fetchSectionAdvisories()` with
-  /// no `teacherUserId`), fetched once alongside the teacher list so the
-  /// School Level / Grade Level filters below can be derived from live data
-  /// and so each teacher can be matched against the levels/grades they
-  /// actually teach.
+  /// no `teacherUserId`), fetched once alongside the teacher list so each
+  /// teacher can be matched against the levels/grades they actually teach.
   List<SectionAdvisory> _advisories = const [];
+
+  /// The full curriculum, unfiltered by any teacher's assignments — drives
+  /// the School Level / Grade Level filter *options*, so every grade the
+  /// school teaches shows up even if no teacher currently has an advisory
+  /// for it yet (selecting one just yields an empty teacher list, same as
+  /// any other filter with no matches).
+  List<Subject> _subjects = const [];
 
   final _searchController = TextEditingController();
   String _query = '';
@@ -81,6 +100,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       final results = await Future.wait([
         widget.teachersRepository.fetchTeachers(),
         widget.advisoryApi.fetchSectionAdvisories(),
+        widget.gradesRepository.fetchAllSubjects(),
       ]);
       final teachers = results[0] as List<Teacher>;
       teachers.sort((a, b) => a.name.compareTo(b.name));
@@ -88,6 +108,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       setState(() {
         _teachers = teachers;
         _advisories = results[1] as List<SectionAdvisory>;
+        _subjects = results[2] as List<Subject>;
         _status = _LoadStatus.loaded;
       });
     } catch (_) {
@@ -96,20 +117,25 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     }
   }
 
-  /// Distinct school levels present among [_advisories], in enum order.
+  /// Distinct school levels the curriculum actually covers (per [_subjects]),
+  /// in enum order — independent of which levels currently have a teacher
+  /// advisory, so e.g. Elementary still shows up even if no elementary
+  /// teacher has been assigned an advisory yet.
   List<SchoolLevel> get _availableSchoolLevels {
-    final present = _advisories.map((a) => a.schoolLevel).toSet();
+    final present = _subjects.map((s) => s.schoolLevel).toSet();
     return SchoolLevel.values.where(present.contains).toList();
   }
 
   /// Distinct grade levels taught at [_schoolLevel] (or across every level
-  /// if "All" is selected), sorted for stable dropdown order.
+  /// if "All" is selected), sorted numerically (`Grade 2` before `Grade 10`)
+  /// rather than lexicographically — plain string sort would otherwise
+  /// order "Grade 10" ahead of "Grade 2".
   List<String> get _availableGradeLevels {
     final matching = _schoolLevel == _kAllSchoolLevels
-        ? _advisories
-        : _advisories.where((a) => schoolLevelToJson(a.schoolLevel) == _schoolLevel);
-    final grades = matching.map((a) => a.gradeLevel).toSet().toList();
-    grades.sort();
+        ? _subjects
+        : _subjects.where((s) => schoolLevelToJson(s.schoolLevel) == _schoolLevel);
+    final grades = matching.map((s) => s.gradeLevel).toSet().toList();
+    grades.sort(_compareGradeLevels);
     return grades;
   }
 

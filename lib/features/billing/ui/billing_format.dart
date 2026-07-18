@@ -107,6 +107,23 @@ const _installmentStatusStyles = {
 StatusStyle installmentStatusStyle(String status) =>
     _installmentStatusStyles[status] ?? _installmentStatusStyles['pending']!;
 
+/// `enrollment_status` choices per enrollment-service's `Enrollment.
+/// STATUS_CHOICES` (enrollments/models.py).
+const _enrollmentStatusStyles = {
+  'enrolled': StatusStyle('Enrolled', AppColors.successBg, AppColors.successText),
+  'pending': StatusStyle('Pending', AppColors.warningBg, AppColors.warningText2),
+  'cancelled': StatusStyle('Cancelled', AppColors.dangerBg, AppColors.dangerText),
+  'completed': StatusStyle('Completed', AppColors.infoBlueBg, AppColors.infoBlueIcon),
+  'transferred_out': StatusStyle(
+    'Transferred Out',
+    AppColors.neutralPillBg,
+    AppColors.neutralPillText,
+  ),
+};
+
+StatusStyle enrollmentStatusStyle(String status) =>
+    _enrollmentStatusStyles[status] ?? _enrollmentStatusStyles['pending']!;
+
 class DueMeta {
   const DueMeta(this.label, this.background, this.textColor, this.isOverdue);
 

@@ -45,20 +45,29 @@ class GradedStudent {
 /// names confirmed against `grades/serializers.py`: pk is `grade_id`, the
 /// numeric result is `numeric_grade` (not `final_grade`), and the nested
 /// `enrollment_detail` carries `enrollment_id` (used to join back to the
-/// roster) but no student name.
+/// roster) but no student name. `subject_detail`/`grading_period` are also
+/// real serializer fields — needed to build a per-subject × per-period
+/// matrix (see GradeSummaryScreen), not just a single subject+period roster.
 class Grade {
   const Grade({
     required this.id,
     required this.enrollmentId,
+    required this.subjectId,
+    required this.subjectName,
+    required this.gradingPeriod,
     required this.numericGrade,
     required this.remarks,
   });
 
   factory Grade.fromJson(Map<String, dynamic> json) {
     final enrollmentDetail = json['enrollment_detail'] as Map<String, dynamic>?;
+    final subjectDetail = json['subject_detail'] as Map<String, dynamic>?;
     return Grade(
       id: json['grade_id'] as int,
       enrollmentId: (enrollmentDetail?['enrollment_id'] as int?) ?? json['enrollment'] as int,
+      subjectId: (subjectDetail?['subject_id'] as int?) ?? json['subject'] as int,
+      subjectName: subjectDetail?['subject_name'] as String? ?? '',
+      gradingPeriod: json['grading_period'] as String? ?? '',
       numericGrade: _parseNumericGrade(json['numeric_grade']),
       remarks: json['remarks'] as String?,
     );
@@ -66,6 +75,9 @@ class Grade {
 
   final int id;
   final int enrollmentId;
+  final int subjectId;
+  final String subjectName;
+  final String gradingPeriod;
   final double? numericGrade;
   final String? remarks;
 }

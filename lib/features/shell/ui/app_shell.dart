@@ -6,11 +6,14 @@ import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/ui/attendance_screen.dart';
 import '../../auth/state/auth_provider.dart';
 import '../../billing/data/billing_repository.dart';
+import '../../billing/data/enrollment_repository.dart';
+import '../../billing/ui/enrollments_list_screen.dart';
 import '../../dashboard/data/dashboard_repository.dart';
 import '../../dashboard/ui/dashboard_screen.dart';
 import '../../dashboard/ui/financial_stats_screen.dart';
 import '../../advisory/data/advisory_api.dart';
 import '../../grades/data/grades_repository.dart';
+import '../../grades/ui/grade_overview_screen.dart';
 import '../../grades/ui/grades_screen.dart';
 import '../../monitoring/data/audit_log_repository.dart';
 import '../../monitoring/data/teachers_repository.dart';
@@ -26,6 +29,8 @@ enum ShellTab {
   students,
   attendance,
   grades,
+  gradeOverview,
+  enrollments,
   monitoring,
   auditLog,
   financialStats,
@@ -44,15 +49,22 @@ enum ShellTab {
 /// `GET /api/auth/audit-logs/` is gated to `ADMIN_ROLES` server-side, and
 /// financial-summary is view-only staff data, not something registrar or
 /// teacher have any backend access to.
-/// `registrar`/`teacher` keep the original Attendance+Grades tabs. Unknown
-/// roles (including `guardian`, which is dead on the backend) fall back to
-/// the same Dashboard+Students+More default.
+/// `teacher` keeps the original Attendance+Grades tabs (their own advisory
+/// roster, editable). `registrar` gets Grade Overview instead — a read-only,
+/// school-wide grade summary (see `GradeOverviewScreen`) — and no Attendance
+/// tab at all (out of scope per product decision, not a backend gap).
+/// `registrar` also gets Enrollments — read + quick-edit of section/status
+/// (see `EnrollmentsListScreen`); full enrollment intake stays web-only.
+/// Unknown roles (including `guardian`, which is dead on the backend) fall
+/// back to the same Dashboard+Students+More default.
 List<ShellTab> _visibleTabsForRole(String role) {
   final tabs = [ShellTab.dashboard, ShellTab.students];
   if (hasAnyRole(role, staffAdmin)) {
     tabs.addAll([ShellTab.monitoring, ShellTab.auditLog, ShellTab.financialStats]);
-  } else if (hasAnyRole(role, gradeRoles)) {
+  } else if (role == roleTeacher) {
     tabs.addAll([ShellTab.attendance, ShellTab.grades]);
+  } else if (role == roleRegistrar) {
+    tabs.addAll([ShellTab.enrollments, ShellTab.gradeOverview]);
   }
   tabs.add(ShellTab.more);
   return tabs;
@@ -72,6 +84,7 @@ class AppShell extends StatefulWidget {
     required this.teachersRepository,
     required this.advisoryApi,
     required this.billingRepository,
+    required this.enrollmentRepository,
     required this.auditLogRepository,
   });
 
@@ -82,6 +95,7 @@ class AppShell extends StatefulWidget {
   final TeachersRepository teachersRepository;
   final AdvisoryApi advisoryApi;
   final BillingRepository billingRepository;
+  final EnrollmentRepository enrollmentRepository;
   final AuditLogRepository auditLogRepository;
 
   @override
@@ -133,6 +147,14 @@ class _AppShellState extends State<AppShell> {
             const SizedBox.shrink(),
           if (_visited.contains(ShellTab.grades))
             GradesScreen(repository: widget.gradesRepository)
+          else
+            const SizedBox.shrink(),
+          if (_visited.contains(ShellTab.gradeOverview))
+            GradeOverviewScreen(repository: widget.enrollmentRepository)
+          else
+            const SizedBox.shrink(),
+          if (_visited.contains(ShellTab.enrollments))
+            EnrollmentsListScreen(repository: widget.enrollmentRepository)
           else
             const SizedBox.shrink(),
           if (_visited.contains(ShellTab.monitoring))

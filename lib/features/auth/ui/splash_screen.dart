@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../advisory/data/advisory_api.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../billing/data/billing_repository.dart';
+import '../../billing/data/enrollment_repository.dart';
 import '../../dashboard/data/dashboard_repository.dart';
 import '../../grades/data/grades_repository.dart';
 import '../../monitoring/data/audit_log_repository.dart';
@@ -44,6 +45,7 @@ class _SplashScreenState extends State<SplashScreen> {
             teachersRepository: context.read<TeachersRepository>(),
             advisoryApi: context.read<AdvisoryApi>(),
             billingRepository: context.read<BillingRepository>(),
+            enrollmentRepository: context.read<EnrollmentRepository>(),
             auditLogRepository: context.read<AuditLogRepository>(),
           )
         : const LoginScreen();

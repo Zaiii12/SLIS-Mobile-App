@@ -381,11 +381,30 @@ class _StaffBody extends StatelessWidget {
 /// billing content — the backend's BILLING_ROLES (super_admin/admin/
 /// accounting) excludes registrar entirely, confirmed in billing/views.py
 /// and the admin-portal sidebar, which never surfaces Financial Snapshot or
-/// Invoices/Payments to registrar.
-class _RegistrarBody extends StatelessWidget {
+/// Invoices/Payments to registrar. Recent Enrollments / Recently Added
+/// Students mirror `_SuperAdminBody` — both endpoints are read-open to any
+/// authenticated staff role, no admin-only restriction.
+class _RegistrarBody extends StatefulWidget {
   const _RegistrarBody({required this.data});
 
   final DashboardData data;
+
+  @override
+  State<_RegistrarBody> createState() => _RegistrarBodyState();
+}
+
+class _RegistrarBodyState extends State<_RegistrarBody> {
+  late Future<List<RecentEnrollment>> _recentEnrollmentsFuture;
+  late Future<List<Student>> _recentStudentsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _recentEnrollmentsFuture =
+        context.read<EnrollmentRepository>().fetchRecentEnrollments();
+    _recentStudentsFuture =
+        context.read<StudentsRepository>().fetchRecentStudents();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -398,7 +417,7 @@ class _RegistrarBody extends StatelessWidget {
             AttentionItem(
               icon: Icons.people_outline,
               title: 'Pending enrollment approvals',
-              count: data.pendingEnrollment,
+              count: widget.data.pendingEnrollment,
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) =>
@@ -415,7 +434,7 @@ class _RegistrarBody extends StatelessWidget {
             Expanded(
               child: StatCard(
                 label: 'Active Students',
-                value: '${data.activeStudents}',
+                value: '${widget.data.activeStudents}',
                 icon: Icons.groups_outlined,
                 pill: StatPill(
                   label: 'as of today',
@@ -428,10 +447,10 @@ class _RegistrarBody extends StatelessWidget {
             Expanded(
               child: StatCard(
                 label: 'Enrolled This Year',
-                value: '${data.enrolledThisYear}',
+                value: '${widget.data.enrolledThisYear}',
                 icon: Icons.calendar_month_outlined,
                 pill: StatPill(
-                  label: data.schoolYear,
+                  label: widget.data.schoolYear,
                   background: AppColors.neutralPillBg,
                   textColor: AppColors.neutralPillText,
                 ),
@@ -441,8 +460,22 @@ class _RegistrarBody extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.statGridGap),
         PendingEnrollmentCard(
-          value: data.pendingEnrollment,
-          byYear: data.pendingEnrollmentByYear,
+          value: widget.data.pendingEnrollment,
+          byYear: widget.data.pendingEnrollmentByYear,
+        ),
+        const SizedBox(height: AppSpacing.interCardGap),
+        FutureBuilder<List<RecentEnrollment>>(
+          future: _recentEnrollmentsFuture,
+          builder: (context, snapshot) {
+            return RecentEnrollmentsCard(enrollments: snapshot.data ?? const []);
+          },
+        ),
+        const SizedBox(height: AppSpacing.interCardGap),
+        FutureBuilder<List<Student>>(
+          future: _recentStudentsFuture,
+          builder: (context, snapshot) {
+            return RecentStudentsCard(students: snapshot.data ?? const []);
+          },
         ),
       ],
     );
@@ -523,39 +556,15 @@ class _SuperAdminBodyState extends State<_SuperAdminBody> {
           ],
         ),
         const SizedBox(height: AppSpacing.statGridGap),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: StatCard(
-                label: 'Pending Enrollment',
-                value: '${widget.data.pendingEnrollment}',
-                icon: Icons.assignment_outlined,
-                pill: StatPill(
-                  label: widget.data.pendingEnrollment > 0 ? 'needs action' : 'all clear',
-                  background: widget.data.pendingEnrollment > 0
-                      ? AppColors.dangerBg
-                      : AppColors.successBg,
-                  textColor: widget.data.pendingEnrollment > 0
-                      ? AppColors.dangerText
-                      : AppColors.successText,
-                ),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.statGridGap),
-            Expanded(
-              child: StatCard(
-                label: 'Scholarships Awarded',
-                value: '${widget.data.scholarshipCount}',
-                icon: Icons.emoji_events_outlined,
-                pill: StatPill(
-                  label: widget.data.schoolYear,
-                  background: AppColors.infoBlueBg,
-                  textColor: AppColors.infoBlueIcon,
-                ),
-              ),
-            ),
-          ],
+        StatCard(
+          label: 'Scholarships Awarded',
+          value: '${widget.data.scholarshipCount}',
+          icon: Icons.emoji_events_outlined,
+          pill: StatPill(
+            label: widget.data.schoolYear,
+            background: AppColors.infoBlueBg,
+            textColor: AppColors.infoBlueIcon,
+          ),
         ),
         const SizedBox(height: AppSpacing.interCardGap),
         EnrollmentFunnelCard(

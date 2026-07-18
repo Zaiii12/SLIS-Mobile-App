@@ -18,7 +18,10 @@ extension SchoolLevelLabel on SchoolLevel {
   }
 }
 
-SchoolLevel _schoolLevelFromJson(String value) {
+/// Parses the enrollment-service `school_level` string into [SchoolLevel].
+/// Public (not just used by [SectionAdvisory.fromJson]) since any model
+/// carrying that same field — e.g. `Subject` — needs identical parsing.
+SchoolLevel schoolLevelFromJson(String value) {
   switch (value) {
     case 'nursery':
       return SchoolLevel.nursery;
@@ -56,7 +59,7 @@ class SectionAdvisory {
       id: json['advisory_id'] as int,
       teacherUserId: json['teacher_user_id'] as int,
       schoolYear: json['school_year'] as String? ?? '',
-      schoolLevel: _schoolLevelFromJson(json['school_level'] as String? ?? ''),
+      schoolLevel: schoolLevelFromJson(json['school_level'] as String? ?? ''),
       gradeLevel: json['grade_level'] as String? ?? '',
       section: json['section'] as String? ?? '',
       strand: json['strand'] as String?,

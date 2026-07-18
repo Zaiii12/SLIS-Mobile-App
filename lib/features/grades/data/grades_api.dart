@@ -45,6 +45,18 @@ class GradesApi {
     return _resultsOf(response.data).map(Subject.fromJson).toList();
   }
 
+  /// Every subject in the curriculum, unfiltered by school/grade level —
+  /// used to derive the full set of school/grade levels the school actually
+  /// teaches (independent of which of those levels currently have a
+  /// teacher advisory assigned), e.g. for Monitoring's filter dropdowns.
+  Future<List<Subject>> fetchAllSubjects() async {
+    final response = await _enrollment.get(
+      '/api/subjects/',
+      queryParameters: {'page_size': 500},
+    );
+    return _resultsOf(response.data).map(Subject.fromJson).toList();
+  }
+
   /// A `Subject`'s `grading_template_detail` already embeds the template's
   /// weighted `components` (see `subjects/serializers.py`) — no separate
   /// `/api/grading-templates/` or `/api/grading-components/` fetch needed.
@@ -103,6 +115,20 @@ class GradesApi {
                 );
         }(),
     ];
+  }
+
+  /// Every saved `Grade` row for one enrollment, across all subjects and
+  /// grading periods — backs the read-only Grade Summary screen's subject ×
+  /// period matrix. `enrollment` is a real `filterset_fields` entry on
+  /// `GradeViewSet` (`grades/views.py`), and registrar has full read access
+  /// via `IsAdvisoryTeacherOrStaff`'s `GRADE_READ_ROLES` (staff roles aren't
+  /// scoped to a subset of students, unlike teacher/guardian).
+  Future<List<Grade>> fetchGradesForEnrollment(int enrollmentId) async {
+    final response = await _enrollment.get(
+      '/api/grades/',
+      queryParameters: {'enrollment': enrollmentId, 'page_size': 500},
+    );
+    return _resultsOf(response.data).map(Grade.fromJson).toList();
   }
 
   Future<List<ScoreEntry>> fetchScoreEntries({

@@ -47,4 +47,13 @@ class StudentsApi {
       hasMore: hasMore,
     );
   }
+
+  /// `PATCH /api/students/{id}/` — allowed for admin/super_admin/registrar
+  /// per student-service's `IsAdminRegistrarOrReadOnly` permission class.
+  /// Throws `DioException` with response status 400 if the server's
+  /// optimistic-lock check rejects a stale `updated_at` (DRF ValidationError).
+  Future<Student> updateStudent(String id, Map<String, dynamic> body) async {
+    final response = await _student.patch('/api/students/$id/', data: body);
+    return Student.fromJson(response.data as Map<String, dynamic>);
+  }
 }

@@ -7,6 +7,7 @@ import '../state/auth_provider.dart';
 import '../../advisory/data/advisory_api.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../billing/data/billing_repository.dart';
+import '../../billing/data/enrollment_repository.dart';
 import '../../dashboard/data/dashboard_repository.dart';
 import '../../grades/data/grades_repository.dart';
 import '../../monitoring/data/audit_log_repository.dart';
@@ -62,6 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final teachersRepository = context.read<TeachersRepository>();
       final advisoryApi = context.read<AdvisoryApi>();
       final billingRepository = context.read<BillingRepository>();
+      final enrollmentRepository = context.read<EnrollmentRepository>();
       final auditLogRepository = context.read<AuditLogRepository>();
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
@@ -73,6 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
             teachersRepository: teachersRepository,
             advisoryApi: advisoryApi,
             billingRepository: billingRepository,
+            enrollmentRepository: enrollmentRepository,
             auditLogRepository: auditLogRepository,
           ),
         ),

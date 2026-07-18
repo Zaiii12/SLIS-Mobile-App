@@ -30,4 +30,8 @@ class StudentsRepository {
     final page = await fetchStudents(ordering: '-student_id', page: 1);
     return page.students.take(limit).toList();
   }
+
+  Future<Student> updateStudent(String id, Map<String, dynamic> body) {
+    return _api.updateStudent(id, body);
+  }
 }

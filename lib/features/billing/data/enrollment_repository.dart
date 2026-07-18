@@ -1,4 +1,6 @@
 import '../../dashboard/models/recent_enrollment.dart';
+import '../../grades/models/grade_overview_row.dart';
+import '../models/enrollment.dart';
 import '../models/pending_enrollment.dart';
 import 'enrollment_api.dart';
 
@@ -18,6 +20,52 @@ class EnrollmentRepository {
 
   Future<List<RecentEnrollment>> fetchRecentEnrollments({int limit = 5}) {
     return _api.fetchRecentEnrollments(limit: limit);
+  }
+
+  Future<List<GradeOverviewRow>> fetchGradeOverviewRoster({
+    String? schoolYear,
+    String? schoolLevel,
+    String? gradeLevel,
+    String? search,
+  }) {
+    return _api.fetchGradeOverviewRoster(
+      schoolYear: schoolYear,
+      schoolLevel: schoolLevel,
+      gradeLevel: gradeLevel,
+      search: search,
+    );
+  }
+
+  Future<List<Enrollment>> fetchEnrollments({
+    String? schoolYear,
+    String? schoolLevel,
+    String? gradeLevel,
+    String? enrollmentStatus,
+    String? search,
+  }) {
+    return _api.fetchEnrollments(
+      schoolYear: schoolYear,
+      schoolLevel: schoolLevel,
+      gradeLevel: gradeLevel,
+      enrollmentStatus: enrollmentStatus,
+      search: search,
+    );
+  }
+
+  Future<Enrollment> fetchEnrollment(String enrollmentId) {
+    return _api.fetchEnrollment(enrollmentId);
+  }
+
+  Future<Enrollment> updateEnrollment(
+    String enrollmentId, {
+    String? section,
+    String? enrollmentStatus,
+  }) {
+    return _api.updateEnrollment(
+      enrollmentId,
+      section: section,
+      enrollmentStatus: enrollmentStatus,
+    );
   }
 
   /// Resolves applicationType + previous school for one enrollment.
