@@ -95,6 +95,10 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
   }
 
   Future<void> _saveInvoice() async {
+    if (_editDueDate == null) {
+      setState(() => _invoiceError = 'Set a due date before saving.');
+      return;
+    }
     setState(() {
       _invoiceSaving = true;
       _invoiceError = null;
@@ -102,9 +106,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
     try {
       final updated = await widget.repository.updateInvoice(
         invoiceId: _invoice.invoiceId,
-        dueDate: _editDueDate != null
-            ? DateFormat('yyyy-MM-dd').format(_editDueDate!)
-            : null,
+        dueDate: DateFormat('yyyy-MM-dd').format(_editDueDate!),
         paymentPlan: _editPaymentPlan,
       );
       if (!mounted) return;

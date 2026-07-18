@@ -436,7 +436,12 @@ class _InvoiceRow extends StatelessWidget {
                     style: GoogleFonts.dmSans(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.headingDark,
+                      fontStyle: enrollment == null
+                          ? FontStyle.italic
+                          : FontStyle.normal,
+                      color: enrollment == null
+                          ? AppColors.textMuted3
+                          : AppColors.headingDark,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),

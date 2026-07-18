@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -58,6 +59,9 @@ class _GradeDetailScreenState extends State<GradeDetailScreen> {
 
   final Map<int, _DraftEntry> _drafts = {};
   final Map<int, int> _editingEntryId = {};
+  final Map<int, String> _entryErrors = {};
+  final Set<int> _pendingComponentIds = {};
+  final Set<int> _pendingEntryIds = {};
 
   @override
   void initState() {
@@ -91,21 +95,41 @@ class _GradeDetailScreenState extends State<GradeDetailScreen> {
   _DraftEntry _draftFor(int componentId) => _drafts[componentId] ??= _DraftEntry();
 
   Future<void> _addOrUpdateEntry(GradingComponent component) async {
+    if (_pendingComponentIds.contains(component.id)) return;
     final draft = _draftFor(component.id);
     final score = double.tryParse(draft.score);
     final max = double.tryParse(draft.max);
-    if (draft.label.trim().isEmpty || score == null || max == null || max <= 0 || score < 0 || score > max) {
+
+    String? validationError;
+    if (draft.label.trim().isEmpty) {
+      validationError = 'Enter a label.';
+    } else if (max == null || max <= 0) {
+      validationError = 'Max must be greater than 0.';
+    } else if (score == null || score < 0) {
+      validationError = "Score can't be negative.";
+    } else if (score > max) {
+      validationError = "Score can't exceed max.";
+    }
+    if (validationError != null) {
+      setState(() => _entryErrors[component.id] = validationError!);
       return;
     }
+    setState(() => _entryErrors.remove(component.id));
+    // Non-null here: reaching this point means the validation chain above
+    // found no error, which only happens once score/max are confirmed
+    // parsed (the analyzer can't narrow this itself across the if/else-if).
+    final validScore = score!;
+    final validMax = max!;
 
     final editingId = _editingEntryId[component.id];
+    _pendingComponentIds.add(component.id);
     try {
       if (editingId != null) {
         final updated = await widget.repository.updateScoreEntry(
           id: editingId,
           label: draft.label.trim(),
-          score: score,
-          maxScore: max,
+          score: validScore,
+          maxScore: validMax,
         );
         if (!mounted) return;
         setState(() {
@@ -118,8 +142,8 @@ class _GradeDetailScreenState extends State<GradeDetailScreen> {
           componentId: component.id,
           period: widget.period.toJson(),
           label: draft.label.trim(),
-          score: score,
-          maxScore: max,
+          score: validScore,
+          maxScore: validMax,
         );
         if (!mounted) return;
         setState(() => _entries = [..._entries, created]);
@@ -134,6 +158,8 @@ class _GradeDetailScreenState extends State<GradeDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not save score entry.', style: GoogleFonts.dmSans())),
       );
+    } finally {
+      _pendingComponentIds.remove(component.id);
     }
   }
 
@@ -144,6 +170,7 @@ class _GradeDetailScreenState extends State<GradeDetailScreen> {
         ..score = _trimZero(entry.score)
         ..max = _trimZero(entry.maxScore);
       _editingEntryId[component.id] = entry.id;
+      _entryErrors.remove(component.id);
     });
   }
 
@@ -151,10 +178,13 @@ class _GradeDetailScreenState extends State<GradeDetailScreen> {
     setState(() {
       _drafts[componentId] = _DraftEntry();
       _editingEntryId.remove(componentId);
+      _entryErrors.remove(componentId);
     });
   }
 
   Future<void> _deleteEntry(GradingComponent component, ScoreEntry entry) async {
+    if (_pendingEntryIds.contains(entry.id)) return;
+    _pendingEntryIds.add(entry.id);
     try {
       await widget.repository.deleteScoreEntry(entry.id);
       if (!mounted) return;
@@ -167,11 +197,20 @@ class _GradeDetailScreenState extends State<GradeDetailScreen> {
         // Deleting invalidates any prior compute, per the handoff.
         _computed = null;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
+      // A 404 here almost always means a fast double-tap already deleted
+      // this entry on the first request — the end state the user wanted is
+      // already true, so update local state instead of showing a failure.
+      if (error is DioException && error.response?.statusCode == 404) {
+        setState(() => _entries = _entries.where((e) => e.id != entry.id).toList());
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not delete score entry.', style: GoogleFonts.dmSans())),
       );
+    } finally {
+      _pendingEntryIds.remove(entry.id);
     }
   }
 
@@ -240,6 +279,7 @@ class _GradeDetailScreenState extends State<GradeDetailScreen> {
                 entries: _entries.where((e) => e.componentId == _components[i].id).toList(),
                 draft: _draftFor(_components[i].id),
                 isEditing: _editingEntryId.containsKey(_components[i].id),
+                entryError: _entryErrors[_components[i].id],
                 onDraftChanged: () => setState(() {}),
                 onEdit: (entry) => _startEdit(_components[i], entry),
                 onDelete: (entry) => _deleteEntry(_components[i], entry),
@@ -275,6 +315,7 @@ class _ComponentCard extends StatelessWidget {
     required this.entries,
     required this.draft,
     required this.isEditing,
+    this.entryError,
     required this.onDraftChanged,
     required this.onEdit,
     required this.onDelete,
@@ -287,6 +328,7 @@ class _ComponentCard extends StatelessWidget {
   final List<ScoreEntry> entries;
   final _DraftEntry draft;
   final bool isEditing;
+  final String? entryError;
   final VoidCallback onDraftChanged;
   final ValueChanged<ScoreEntry> onEdit;
   final ValueChanged<ScoreEntry> onDelete;
@@ -432,6 +474,13 @@ class _ComponentCard extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (entryError != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    entryError!,
+                    style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.dangerText),
+                  ),
+                ],
               ],
             ),
           ),

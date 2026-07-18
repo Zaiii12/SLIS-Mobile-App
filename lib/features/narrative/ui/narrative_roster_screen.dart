@@ -98,33 +98,51 @@ class _NarrativeRosterScreenState extends State<NarrativeRosterScreen> {
 
   int get _ratedCount => _ratings.values.where((r) => r != null).length;
 
+  /// Sends each rated student as its own create-or-update call (see class
+  /// doc comment) and tracks per-student success so a partial failure can be
+  /// retried safely: a student whose call succeeded gets its
+  /// [NarrativeReport.reportId] recorded in [_existingReportIds] immediately,
+  /// so a retry PATCHes it instead of re-POSTing into the
+  /// enrollment+category+grading_period uniqueness constraint.
   Future<void> _submit() async {
     setState(() => _submitting = true);
-    try {
-      for (final entry in _roster) {
-        final rating = _ratings[entry.enrollmentId];
-        if (rating == null) continue;
-        final existingId = _existingReportIds[entry.enrollmentId];
+    var failureCount = 0;
+    for (final entry in _roster) {
+      final rating = _ratings[entry.enrollmentId];
+      if (rating == null) continue;
+      final existingId = _existingReportIds[entry.enrollmentId];
+      try {
         if (existingId != null) {
           await widget.narrativeRepository.updateReport(reportId: existingId, rating: rating);
         } else {
-          await widget.narrativeRepository.createReport(
+          final created = await widget.narrativeRepository.createReport(
             enrollmentId: entry.enrollmentId,
             categoryId: widget.category.id,
             gradingPeriod: widget.gradingPeriod,
             rating: rating,
           );
+          if (!mounted) return;
+          setState(() => _existingReportIds[entry.enrollmentId] = created.reportId);
         }
+      } catch (_) {
+        failureCount++;
       }
-      if (!mounted) return;
-      Navigator.of(context).pop(true);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _submitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Submit failed. Check your connection and try again.', style: GoogleFonts.dmSans())),
-      );
     }
+    if (!mounted) return;
+    if (failureCount == 0) {
+      Navigator.of(context).pop(true);
+      return;
+    }
+    setState(() => _submitting = false);
+    final savedCount = _ratedCount - failureCount;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '$savedCount of $_ratedCount saved. Tap Submit to retry the rest.',
+          style: GoogleFonts.dmSans(),
+        ),
+      ),
+    );
   }
 
   @override

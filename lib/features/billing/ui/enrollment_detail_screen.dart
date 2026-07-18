@@ -76,6 +76,10 @@ class _EnrollmentDetailScreenState extends State<EnrollmentDetailScreen> {
   }
 
   Future<void> _save() async {
+    if (_sectionController.text.trim().isEmpty) {
+      setState(() => _error = "Section can't be empty.");
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;

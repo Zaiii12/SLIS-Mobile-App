@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -41,7 +43,40 @@ import 'features/students/data/students_repository.dart';
 /// session is invalidated server-side.
 final navigatorKey = GlobalKey<NavigatorState>();
 
+/// Catches otherwise-uncaught errors (both Flutter framework errors and
+/// async errors outside the widget tree) so a bug surfaces as a logged
+/// error instead of silently dropping the app back to the home screen.
 void main() {
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    developer.log(
+      'Uncaught Flutter error',
+      name: 'slis_mobile',
+      error: details.exception,
+      stackTrace: details.stack,
+    );
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    developer.log(
+      'Uncaught platform error',
+      name: 'slis_mobile',
+      error: error,
+      stackTrace: stack,
+    );
+    return true;
+  };
+
+  runZonedGuarded(_runApp, (error, stack) {
+    developer.log(
+      'Uncaught zone error',
+      name: 'slis_mobile',
+      error: error,
+      stackTrace: stack,
+    );
+  });
+}
+
+void _runApp() {
   final tokenStorage = TokenStorage();
 
   // AuthRepository is constructed after DioClientFactory but the factory's

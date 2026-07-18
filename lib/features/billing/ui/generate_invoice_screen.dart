@@ -276,11 +276,13 @@ class _PaymentPlanScreen extends StatefulWidget {
 }
 
 class _PaymentPlanScreenState extends State<_PaymentPlanScreen> {
-  String _paymentPlan = paymentPlans.first;
+  String? _paymentPlan;
   bool _saving = false;
   String? _error;
 
   Future<void> _submit() async {
+    final paymentPlan = _paymentPlan;
+    if (paymentPlan == null) return;
     setState(() {
       _saving = true;
       _error = null;
@@ -288,7 +290,7 @@ class _PaymentPlanScreenState extends State<_PaymentPlanScreen> {
     try {
       final invoice = await widget.repository.generateInvoice(
         enrollmentId: widget.enrollment.enrollmentId,
-        paymentPlan: _paymentPlan,
+        paymentPlan: paymentPlan,
       );
       if (!mounted) return;
       final result = await Navigator.of(context).pushReplacement<bool, void>(
@@ -308,6 +310,12 @@ class _PaymentPlanScreenState extends State<_PaymentPlanScreen> {
         _error =
             _extractErrorMessage(e.response?.data) ??
             "Couldn't generate the invoice. Check your connection and try again.";
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = 'Something went wrong. Please try again.';
       });
     }
   }
@@ -391,7 +399,7 @@ class _PaymentPlanScreenState extends State<_PaymentPlanScreen> {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: _saving ? null : _submit,
+              onPressed: (_saving || _paymentPlan == null) ? null : _submit,
               child: _saving
                   ? const SizedBox(
                       width: 18,
@@ -413,7 +421,7 @@ class _PaymentPlanScreenState extends State<_PaymentPlanScreen> {
 class _PlanDropdown extends StatelessWidget {
   const _PlanDropdown({required this.value, required this.onChanged});
 
-  final String value;
+  final String? value;
   final ValueChanged<String> onChanged;
 
   @override
@@ -429,6 +437,14 @@ class _PlanDropdown extends StatelessWidget {
         child: DropdownButton<String>(
           value: value,
           isExpanded: true,
+          hint: Text(
+            'Select a plan',
+            style: GoogleFonts.dmSans(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textMuted2,
+            ),
+          ),
           icon: const Icon(
             Icons.expand_more,
             size: 16,
