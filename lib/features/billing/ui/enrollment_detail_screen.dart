@@ -7,7 +7,8 @@ import '../data/enrollment_repository.dart';
 import '../models/enrollment.dart';
 import 'billing_format.dart';
 
-/// Registrar-facing enrollment detail + quick-edit. Only [section] and
+/// Registrar-facing enrollment detail + quick-edit (or read-only detail for
+/// `accounting`/`admin`/`super_admin` — see [readOnly]). Only [section] and
 /// [enrollmentStatus] are editable — see [Enrollment]'s doc comment for why
 /// grade/school level/strand/semester stay display-only (changing them
 /// requires the backend's `progression_override` flow, which needs the
@@ -16,10 +17,19 @@ import 'billing_format.dart';
 /// (eligibility check, transfer records, scholarships, invoice generation)
 /// stays web-only.
 class EnrollmentDetailScreen extends StatefulWidget {
-  const EnrollmentDetailScreen({super.key, required this.repository, required this.enrollment});
+  const EnrollmentDetailScreen({
+    super.key,
+    required this.repository,
+    required this.enrollment,
+    this.readOnly = false,
+  });
 
   final EnrollmentRepository repository;
   final Enrollment enrollment;
+
+  /// Hides the edit pencil entirely — see [EnrollmentsListScreen]'s doc
+  /// comment for who gets read-only vs. quick-edit access.
+  final bool readOnly;
 
   @override
   State<EnrollmentDetailScreen> createState() => _EnrollmentDetailScreenState();
@@ -32,7 +42,9 @@ class _EnrollmentDetailScreenState extends State<EnrollmentDetailScreen> {
   String? _error;
   bool _changed = false;
 
-  late final _sectionController = TextEditingController(text: _enrollment.section);
+  late final _sectionController = TextEditingController(
+    text: _enrollment.section,
+  );
   late String _status = _enrollment.enrollmentStatus;
 
   @override
@@ -86,7 +98,9 @@ class _EnrollmentDetailScreenState extends State<EnrollmentDetailScreen> {
       final serverMessage = _extractErrorMessage(e.response?.data);
       setState(() {
         _saving = false;
-        _error = serverMessage ?? "Couldn't save changes. Check your connection and try again.";
+        _error =
+            serverMessage ??
+            "Couldn't save changes. Check your connection and try again.";
       });
     }
   }
@@ -116,14 +130,18 @@ class _EnrollmentDetailScreenState extends State<EnrollmentDetailScreen> {
         appBar: AppBar(
           title: Text(
             'Enrollment',
-            style: GoogleFonts.dmSans(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.headingDark),
+            style: GoogleFonts.dmSans(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: AppColors.headingDark,
+            ),
           ),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.of(context).pop(_changed),
           ),
           actions: [
-            if (!_editing)
+            if (!_editing && !widget.readOnly)
               IconButton(
                 icon: const Icon(Icons.edit_outlined),
                 tooltip: 'Edit enrollment',
@@ -134,7 +152,10 @@ class _EnrollmentDetailScreenState extends State<EnrollmentDetailScreen> {
                 onPressed: _saving ? null : _cancelEditing,
                 child: Text(
                   'Cancel',
-                  style: GoogleFonts.dmSans(fontWeight: FontWeight.w600, color: AppColors.textMuted3),
+                  style: GoogleFonts.dmSans(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textMuted3,
+                  ),
                 ),
               ),
           ],
@@ -152,36 +173,57 @@ class _EnrollmentDetailScreenState extends State<EnrollmentDetailScreen> {
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [AppColors.avatarGradientStart, AppColors.avatarGradientEnd],
+                      colors: [
+                        AppColors.avatarGradientStart,
+                        AppColors.avatarGradientEnd,
+                      ],
                     ),
                   ),
                   child: Center(
                     child: Text(
                       _enrollment.initials,
-                      style: GoogleFonts.dmSans(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.primary),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(height: 10),
                 Text(
                   _enrollment.studentName,
-                  style: GoogleFonts.dmSans(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.headingDark),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.headingDark,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'LRN ${_enrollment.lrn}',
-                  style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted3),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    color: AppColors.textMuted3,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: style.background,
                     borderRadius: BorderRadius.circular(AppRadii.pill),
                   ),
                   child: Text(
                     style.label,
-                    style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w700, color: style.textColor),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: style.textColor,
+                    ),
                   ),
                 ),
               ],
@@ -189,14 +231,21 @@ class _EnrollmentDetailScreenState extends State<EnrollmentDetailScreen> {
             const SizedBox(height: AppSpacing.interCardGap),
             if (_error != null) ...[
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.dangerBg,
                   borderRadius: BorderRadius.circular(AppRadii.dashboardCard),
                 ),
                 child: Text(
                   _error!,
-                  style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.dangerText),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.dangerText,
+                  ),
                 ),
               ),
               const SizedBox(height: AppSpacing.interCardGap),
@@ -205,10 +254,15 @@ class _EnrollmentDetailScreenState extends State<EnrollmentDetailScreen> {
               title: 'Enrollment',
               rows: [
                 _InfoRow('School Year', _enrollment.schoolYear),
-                _InfoRow('School Level', _schoolLevelLabel(_enrollment.schoolLevel)),
+                _InfoRow(
+                  'School Level',
+                  _schoolLevelLabel(_enrollment.schoolLevel),
+                ),
                 _InfoRow('Grade Level', _enrollment.gradeLevel),
-                if (_enrollment.strand != null) _InfoRow('Strand', _enrollment.strand!),
-                if (_enrollment.semester != null) _InfoRow('Semester', _enrollment.semester!),
+                if (_enrollment.strand != null)
+                  _InfoRow('Strand', _enrollment.strand!),
+                if (_enrollment.semester != null)
+                  _InfoRow('Semester', _enrollment.semester!),
               ],
             ),
             const SizedBox(height: AppSpacing.interCardGap),
@@ -246,7 +300,10 @@ class _EnrollmentDetailScreenState extends State<EnrollmentDetailScreen> {
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Text('Save Changes'),
                 ),
@@ -306,7 +363,11 @@ class _EditForm extends StatelessWidget {
             ),
             child: Text(
               'Edit Section & Status',
-              style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.headingDark),
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.headingDark,
+              ),
             ),
           ),
           Padding(
@@ -365,7 +426,11 @@ class _BoxedTextField extends StatelessWidget {
       ),
       child: TextField(
         controller: controller,
-        style: GoogleFonts.dmSans(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.headingDark),
+        style: GoogleFonts.dmSans(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+          color: AppColors.headingDark,
+        ),
         decoration: const InputDecoration(
           isDense: true,
           filled: false,
@@ -382,7 +447,11 @@ class _BoxedTextField extends StatelessWidget {
 }
 
 class _BoxedDropdown extends StatelessWidget {
-  const _BoxedDropdown({required this.value, required this.items, required this.onChanged});
+  const _BoxedDropdown({
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
 
   final String value;
   final List<String> items;
@@ -401,12 +470,23 @@ class _BoxedDropdown extends StatelessWidget {
         child: DropdownButton<String>(
           value: items.contains(value) ? value : null,
           isExpanded: true,
-          icon: const Icon(Icons.expand_more, size: 16, color: AppColors.textMuted2),
+          icon: const Icon(
+            Icons.expand_more,
+            size: 16,
+            color: AppColors.textMuted2,
+          ),
           borderRadius: BorderRadius.circular(AppRadii.input),
-          style: GoogleFonts.dmSans(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.headingDark),
+          style: GoogleFonts.dmSans(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: AppColors.headingDark,
+          ),
           items: [
             for (final item in items)
-              DropdownMenuItem(value: item, child: Text(enrollmentStatusLabel(item))),
+              DropdownMenuItem(
+                value: item,
+                child: Text(enrollmentStatusLabel(item)),
+              ),
           ],
           onChanged: (next) {
             if (next != null) onChanged(next);
@@ -449,7 +529,11 @@ class _InfoCard extends StatelessWidget {
             ),
             child: Text(
               title,
-              style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.headingDark),
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.headingDark,
+              ),
             ),
           ),
           Padding(
@@ -461,7 +545,9 @@ class _InfoCard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
                       border: i != rows.length - 1
-                          ? const Border(bottom: BorderSide(color: AppColors.rowDivider))
+                          ? const Border(
+                              bottom: BorderSide(color: AppColors.rowDivider),
+                            )
                           : null,
                     ),
                     child: Row(
@@ -469,7 +555,10 @@ class _InfoCard extends StatelessWidget {
                       children: [
                         Text(
                           rows[i].label,
-                          style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted3),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 12,
+                            color: AppColors.textMuted3,
+                          ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(

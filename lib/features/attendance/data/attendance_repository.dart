@@ -9,7 +9,12 @@ class AttendanceRepository {
 
   final AttendanceApi _api;
 
-  Future<AttendanceBreakdown> fetchSummary(DateTime date) => _api.fetchSummary(date);
+  Future<AttendanceBreakdown> fetchSummary(
+    DateTime date, {
+    String? gradeLevel,
+    String? section,
+  }) =>
+      _api.fetchSummary(date, gradeLevel: gradeLevel, section: section);
 
   Future<List<RosterEntry>> fetchRoster(SectionAdvisory section) => _api.fetchRoster(section);
 

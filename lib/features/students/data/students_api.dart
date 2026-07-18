@@ -18,7 +18,10 @@ class StudentsPage {
 /// Calls student-service's `GET /api/students/`. Read-open per the RBAC
 /// handoff (teacher: Read; registrar/admin/super_admin: Read + Write — no
 /// write endpoints are specified in the handoff yet, so only read is wired
-/// here). Supports search by name/LRN and status filtering.
+/// here). Supports search by name/LRN and status/sex/ordering filters —
+/// `status`/`sex` filtering and `ordering_fields` (`student_id`,
+/// `student_number`, `last_name`, `birth_date`, `status`) confirmed in
+/// `StudentViewSet` (`students/views.py`), matching ASIA web's Students page.
 class StudentsApi {
   StudentsApi(this._student);
 
@@ -27,6 +30,7 @@ class StudentsApi {
   Future<StudentsPage> fetchStudents({
     String? search,
     String? status,
+    String? sex,
     String? ordering,
     int page = 1,
   }) async {
@@ -34,7 +38,8 @@ class StudentsApi {
       '/api/students/',
       queryParameters: {
         if (search != null && search.isNotEmpty) 'search': search,
-        if (status != null) 'status': status,
+        if (status != null && status.isNotEmpty) 'status': status,
+        if (sex != null && sex.isNotEmpty) 'sex': sex,
         if (ordering != null && ordering.isNotEmpty) 'ordering': ordering,
         'page': page,
       },

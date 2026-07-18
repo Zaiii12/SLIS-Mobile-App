@@ -58,11 +58,15 @@ class RecentEnrollmentsCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               child: Text(
                 'No enrollment records yet',
-                style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted3),
+                style: GoogleFonts.dmSans(
+                  fontSize: 12,
+                  color: AppColors.textMuted3,
+                ),
               ),
             )
           else
-            for (final enrollment in enrollments) _EnrollmentRow(enrollment: enrollment),
+            for (final enrollment in enrollments)
+              _EnrollmentRow(enrollment: enrollment),
         ],
       ),
     );
@@ -76,9 +80,12 @@ class _EnrollmentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = _statusColors[enrollment.enrollmentStatus] ??
+    final colors =
+        _statusColors[enrollment.enrollmentStatus] ??
         (AppColors.neutralPillBg, AppColors.neutralPillText);
-    final label = _statusLabels[enrollment.enrollmentStatus] ?? enrollment.enrollmentStatus;
+    final label =
+        _statusLabels[enrollment.enrollmentStatus] ??
+        enrollment.enrollmentStatus;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
@@ -111,7 +118,9 @@ class _EnrollmentRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  enrollment.studentName.isEmpty ? 'Unknown student' : enrollment.studentName,
+                  enrollment.studentName.isEmpty
+                      ? 'Unknown student'
+                      : enrollment.studentName,
                   style: GoogleFonts.dmSans(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
@@ -122,7 +131,10 @@ class _EnrollmentRow extends StatelessWidget {
                 const SizedBox(height: 1),
                 Text(
                   '${enrollment.gradeLevel} · ${enrollment.section} · ${enrollment.schoolYear}',
-                  style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted3),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: AppColors.textMuted3,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],

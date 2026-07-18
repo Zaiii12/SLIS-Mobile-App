@@ -1,17 +1,3 @@
-enum AnnouncementCategory { enrollment, form, deadline }
-
-class Announcement {
-  const Announcement({
-    required this.category,
-    required this.title,
-    required this.relativeTime,
-  });
-
-  final AnnouncementCategory category;
-  final String title;
-  final String relativeTime;
-}
-
 class AttendanceBreakdown {
   const AttendanceBreakdown({
     required this.present,
@@ -41,7 +27,6 @@ class DashboardData {
     required this.unpaidInvoices,
     required this.scholarshipCount,
     required this.attendance,
-    required this.announcements,
     required this.statsAreLive,
     required this.attendanceIsLive,
     required this.unpaidInvoicesAreLive,
@@ -69,7 +54,6 @@ class DashboardData {
   /// Only fetched for `staffAdmin` roles.
   final int scholarshipCount;
   final AttendanceBreakdown attendance;
-  final List<Announcement> announcements;
 
   /// False when `fetchStats`/`fetchTodayAttendance` failed and the values
   /// above are the hardcoded fallback, not a live figure — the Dashboard UI
@@ -82,6 +66,7 @@ class DashboardData {
 
   /// Matches the ASIA web dashboard's `enrollmentRate` — enrolled ÷ total
   /// students, rounded. 0 when there are no students yet (avoids NaN).
-  int get enrollmentRate =>
-      totalStudents == 0 ? 0 : ((enrolledThisYear / totalStudents) * 100).round();
+  int get enrollmentRate => totalStudents == 0
+      ? 0
+      : ((enrolledThisYear / totalStudents) * 100).round();
 }

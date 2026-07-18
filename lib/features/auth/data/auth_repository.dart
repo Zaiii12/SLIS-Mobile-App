@@ -70,4 +70,20 @@ class AuthRepository {
   Future<void> clearLocalSession() async {
     await _tokenStorage.clear();
   }
+
+  /// Changes the current user's own password. Throws [DioException] on
+  /// failure (e.g. wrong current password, new password under 8 characters)
+  /// — the caller surfaces the server's `detail` message.
+  Future<void> changeOwnPassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final userId = await _tokenStorage.readUserId();
+    if (userId == null) throw StateError('No signed-in user.');
+    await _authApi.changePassword(
+      id: userId,
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+  }
 }

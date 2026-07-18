@@ -5,10 +5,14 @@ import 'package:provider/provider.dart';
 
 import '../../../core/auth/roles.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../advisory/models/section_advisory.dart';
 import '../../advisory/state/advisory_provider.dart';
+import '../../attendance/data/attendance_repository.dart';
 import '../../auth/state/auth_provider.dart';
 import '../../billing/data/billing_repository.dart';
 import '../../billing/data/enrollment_repository.dart';
+import '../../billing/models/invoice.dart';
+import '../../billing/ui/billing_format.dart';
 import '../../billing/ui/pending_enrollment_screen.dart';
 import '../../billing/ui/unpaid_invoices_list_screen.dart';
 import '../../shell/ui/app_shell.dart';
@@ -18,10 +22,12 @@ import '../data/dashboard_repository.dart';
 import '../models/dashboard_data.dart';
 import '../models/recent_enrollment.dart';
 import 'widgets/enrollment_funnel_card.dart';
+import 'widgets/my_students_card.dart';
 import 'widgets/needs_attention_card.dart';
 import 'widgets/pending_enrollment_card.dart';
 import 'widgets/recent_enrollments_card.dart';
 import 'widgets/recent_students_card.dart';
+import 'widgets/section_attendance_card.dart';
 import 'widgets/stat_card.dart';
 import 'widgets/todays_classes_card.dart';
 
@@ -102,27 +108,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
-              child: Container(
-                width: 38,
-                height: 38,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppColors.avatarGradientStart,
-                      AppColors.avatarGradientEnd,
-                    ],
+              child: InkWell(
+                borderRadius: BorderRadius.circular(19),
+                onTap: () => widget.onNavigateToTab(ShellTab.more),
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.avatarGradientStart,
+                        AppColors.avatarGradientEnd,
+                      ],
+                    ),
                   ),
-                ),
-                child: Center(
-                  child: Text(
-                    user?.initials ?? '?',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
+                  child: Center(
+                    child: Text(
+                      user?.initials ?? '?',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                 ),
@@ -139,10 +149,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           }
           final data = snapshot.data!;
           final role = user?.role ?? '';
-          // The accounting body renders no live stats/attendance figures at
-          // all (`_AccountingBody` is an empty placeholder), so the notice
-          // would be noise there. Every other role's body — including
-          // super_admin/admin's 4-stat row — reads real `data` fields.
+          // `_AccountingBody` doesn't render `data.totalStudents`/`attendance`
+          // (the fields `statsAreLive`/`attendanceIsLive` describe) — it only
+          // reads `data.unpaidInvoices` (covered by `showsUnpaidInvoices`
+          // below) plus its own separately-fetched financial summary, so a
+          // stats/attendance fetch failure isn't real staleness for this
+          // role. Every other role's body reads `data.totalStudents`/
+          // `attendance` directly.
           final showsLiveData = role != roleAccounting;
           // Only bodies with billing access display the unpaid invoice
           // count — teacher/registrar have no billing access at all
@@ -150,8 +163,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           // figure, so a failed invoice fetch for them isn't real staleness.
           final showsUnpaidInvoices =
               role != roleTeacher && role != roleRegistrar;
-          // Scholarships Awarded is staffAdmin-only (see DashboardRepository).
-          final showsScholarshipCount = hasAnyRole(role, staffAdmin);
+          // Scholarships Awarded: staffAdmin/registrar/accounting all render
+          // it now (see DashboardRepository's fetch gating) — only teacher
+          // doesn't.
+          final showsScholarshipCount = role != roleTeacher;
           final isStale =
               showsLiveData &&
               (!data.statsAreLive ||
@@ -194,7 +209,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case roleRegistrar:
         return _RegistrarBody(data: data);
       case roleAccounting:
-        return const _AccountingBody();
+        return _AccountingBody(data: data);
       default:
         return _StaffBody(data: data);
     }
@@ -237,7 +252,7 @@ class _StaleDataBanner extends StatelessWidget {
   }
 }
 
-class _TeacherBody extends StatelessWidget {
+class _TeacherBody extends StatefulWidget {
   const _TeacherBody({
     required this.data,
     required this.onOpenAttendance,
@@ -249,50 +264,111 @@ class _TeacherBody extends StatelessWidget {
   final VoidCallback onOpenGrades;
 
   @override
+  State<_TeacherBody> createState() => _TeacherBodyState();
+}
+
+class _TeacherBodyState extends State<_TeacherBody> {
+  final _today = DateTime.now();
+
+  List<SectionAdvisory>? _sectionsForFetch;
+  Map<int, AttendanceBreakdown?> _sectionAttendance = {};
+  Future<List<MyStudentsEntry>>? _myStudentsFuture;
+
+  void _loadForSections(List<SectionAdvisory> sections) {
+    if (identical(sections, _sectionsForFetch)) return;
+    _sectionsForFetch = sections;
+    _sectionAttendance = {for (final s in sections) s.id: null};
+    _myStudentsFuture = _fetchMyStudents(sections);
+
+    final attendanceRepository = context.read<AttendanceRepository>();
+    for (final section in sections) {
+      attendanceRepository
+          .fetchSummary(
+            _today,
+            gradeLevel: section.gradeLevel,
+            section: section.section,
+          )
+          .then((breakdown) {
+            if (!mounted) return;
+            setState(() => _sectionAttendance[section.id] = breakdown);
+          })
+          .catchError((_) {
+            // Leave as null (shown as a loading spinner briefly, then just
+            // stays put) — a single section's fetch failing shouldn't crash
+            // the rest of the dashboard body.
+          });
+    }
+  }
+
+  /// Joins the roster of every one of the teacher's sections into one list,
+  /// capped for dashboard display. `AttendanceApi.fetchRoster` is already
+  /// the correct per-section-scoped `enrollment_status=enrolled` call (see
+  /// MyStudentsCard's doc comment for why the admin dashboard's
+  /// school-wide `/api/students/` card can't be reused here).
+  Future<List<MyStudentsEntry>> _fetchMyStudents(
+    List<SectionAdvisory> sections,
+  ) async {
+    final attendanceRepository = context.read<AttendanceRepository>();
+    final rosters = await Future.wait(
+      sections.map((s) => attendanceRepository.fetchRoster(s)),
+    );
+    final entries = <MyStudentsEntry>[];
+    for (var i = 0; i < sections.length; i++) {
+      for (final student in rosters[i]) {
+        entries.add(MyStudentsEntry(student: student, section: sections[i]));
+      }
+    }
+    return entries.take(5).toList();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final advisory = context.watch<AdvisoryProvider>();
-    final sectionCount = advisory.advisories.length;
+    final sections = advisory.advisories;
+    if (sections.isNotEmpty) {
+      _loadForSections(sections);
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (advisory.advisories.isNotEmpty)
+        if (sections.isNotEmpty)
           TodaysClassesCard(
-            sections: advisory.advisories,
-            onOpenAttendance: onOpenAttendance,
-            onOpenGrades: onOpenGrades,
+            sections: sections,
+            onOpenAttendance: widget.onOpenAttendance,
+            onOpenGrades: widget.onOpenGrades,
           ),
         const SizedBox(height: AppSpacing.interCardGap),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: StatCard(
-                label: 'My Sections',
-                value: '$sectionCount',
-                icon: Icons.groups_outlined,
-                pill: StatPill(
-                  label: 'S.Y. ${data.schoolYear.replaceFirst('S.Y. ', '')}',
-                  background: AppColors.neutralPillBg,
-                  textColor: AppColors.neutralPillText,
-                ),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.statGridGap),
-            Expanded(
-              child: StatCard(
-                label: 'Week Attendance Avg',
-                value: '${data.attendance.ratePercent}%',
-                icon: Icons.trending_up,
-                pill: StatPill(
-                  label: 'this week',
-                  background: AppColors.successBg,
-                  textColor: AppColors.successText,
-                ),
-              ),
-            ),
-          ],
+        StatCard(
+          label: 'My Sections',
+          value: '${sections.length}',
+          icon: Icons.groups_outlined,
+          pill: StatPill(
+            label: 'S.Y. ${widget.data.schoolYear.replaceFirst('S.Y. ', '')}',
+            background: AppColors.neutralPillBg,
+            textColor: AppColors.neutralPillText,
+          ),
         ),
+        if (sections.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.interCardGap),
+          SectionAttendanceCard(
+            date: _today,
+            rows: [
+              for (final section in sections)
+                SectionAttendanceRow(
+                  section: section,
+                  breakdown: _sectionAttendance[section.id],
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.interCardGap),
+          FutureBuilder<List<MyStudentsEntry>>(
+            future: _myStudentsFuture,
+            builder: (context, snapshot) {
+              return MyStudentsCard(entries: snapshot.data ?? const []);
+            },
+          ),
+        ],
       ],
     );
   }
@@ -400,10 +476,12 @@ class _RegistrarBodyState extends State<_RegistrarBody> {
   @override
   void initState() {
     super.initState();
-    _recentEnrollmentsFuture =
-        context.read<EnrollmentRepository>().fetchRecentEnrollments();
-    _recentStudentsFuture =
-        context.read<StudentsRepository>().fetchRecentStudents();
+    _recentEnrollmentsFuture = context
+        .read<EnrollmentRepository>()
+        .fetchRecentEnrollments();
+    _recentStudentsFuture = context
+        .read<StudentsRepository>()
+        .fetchRecentStudents();
   }
 
   @override
@@ -459,6 +537,17 @@ class _RegistrarBodyState extends State<_RegistrarBody> {
           ],
         ),
         const SizedBox(height: AppSpacing.statGridGap),
+        StatCard(
+          label: 'Scholarships Awarded',
+          value: '${widget.data.scholarshipCount}',
+          icon: Icons.emoji_events_outlined,
+          pill: StatPill(
+            label: widget.data.schoolYear,
+            background: AppColors.infoBlueBg,
+            textColor: AppColors.infoBlueIcon,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.statGridGap),
         PendingEnrollmentCard(
           value: widget.data.pendingEnrollment,
           byYear: widget.data.pendingEnrollmentByYear,
@@ -467,7 +556,9 @@ class _RegistrarBodyState extends State<_RegistrarBody> {
         FutureBuilder<List<RecentEnrollment>>(
           future: _recentEnrollmentsFuture,
           builder: (context, snapshot) {
-            return RecentEnrollmentsCard(enrollments: snapshot.data ?? const []);
+            return RecentEnrollmentsCard(
+              enrollments: snapshot.data ?? const [],
+            );
           },
         ),
         const SizedBox(height: AppSpacing.interCardGap),
@@ -513,15 +604,18 @@ class _SuperAdminBodyState extends State<_SuperAdminBody> {
   @override
   void initState() {
     super.initState();
-    _recentEnrollmentsFuture =
-        context.read<EnrollmentRepository>().fetchRecentEnrollments();
-    _recentStudentsFuture =
-        context.read<StudentsRepository>().fetchRecentStudents();
+    _recentEnrollmentsFuture = context
+        .read<EnrollmentRepository>()
+        .fetchRecentEnrollments();
+    _recentStudentsFuture = context
+        .read<StudentsRepository>()
+        .fetchRecentStudents();
   }
 
   @override
   Widget build(BuildContext context) {
     final enrollmentRepository = context.read<EnrollmentRepository>();
+    final billingRepository = context.read<BillingRepository>();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -578,6 +672,17 @@ class _SuperAdminBodyState extends State<_SuperAdminBody> {
         NeedsAttentionCard(
           items: [
             AttentionItem(
+              icon: Icons.receipt_long_outlined,
+              title: 'Unpaid invoices',
+              count: widget.data.unpaidInvoices,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      UnpaidInvoicesListScreen(repository: billingRepository),
+                ),
+              ),
+            ),
+            AttentionItem(
               icon: Icons.people_outline,
               title: 'Pending enrollment approvals',
               count: widget.data.pendingEnrollment,
@@ -594,7 +699,9 @@ class _SuperAdminBodyState extends State<_SuperAdminBody> {
         FutureBuilder<List<RecentEnrollment>>(
           future: _recentEnrollmentsFuture,
           builder: (context, snapshot) {
-            return RecentEnrollmentsCard(enrollments: snapshot.data ?? const []);
+            return RecentEnrollmentsCard(
+              enrollments: snapshot.data ?? const [],
+            );
           },
         ),
         const SizedBox(height: AppSpacing.interCardGap),
@@ -609,14 +716,284 @@ class _SuperAdminBodyState extends State<_SuperAdminBody> {
   }
 }
 
-class _AccountingBody extends StatelessWidget {
-  const _AccountingBody();
+/// Mirrors the real ASIA web admin dashboard's "revenue strip" for
+/// BILLING_ROLES (`DashboardPage.jsx`: Net Billed / Collected / Outstanding
+/// tiles + a Collection Rate readout, all sourced from
+/// `GET /api/invoices/financial-summary/`) plus the Unpaid Invoices
+/// quick-action already used by `_StaffBody`/`_RegistrarBody`. Previously an
+/// empty placeholder Column — accounting had no dashboard content and no
+/// route to the billing screens at all, since those only lived inside
+/// `_StaffBody`, which accounting never renders.
+class _AccountingBody extends StatefulWidget {
+  const _AccountingBody({required this.data});
+
+  final DashboardData data;
+
+  @override
+  State<_AccountingBody> createState() => _AccountingBodyState();
+}
+
+class _AccountingBodyState extends State<_AccountingBody> {
+  late Future<FinancialSummary> _financialSummaryFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _financialSummaryFuture = context
+        .read<BillingRepository>()
+        .fetchFinancialSummary();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    final billingRepository = context.read<BillingRepository>();
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [],
+      children: [
+        NeedsAttentionCard(
+          items: [
+            AttentionItem(
+              icon: Icons.receipt_long_outlined,
+              title: 'Unpaid invoices',
+              count: widget.data.unpaidInvoices,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      UnpaidInvoicesListScreen(repository: billingRepository),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.interCardGap),
+        FutureBuilder<FinancialSummary>(
+          future: _financialSummaryFuture,
+          builder: (context, snapshot) {
+            final summary = snapshot.data;
+            return _FinancialSummaryCard(
+              summary: summary,
+              loading: snapshot.connectionState != ConnectionState.done,
+              onTapOutstanding: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      UnpaidInvoicesListScreen(repository: billingRepository),
+                ),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: AppSpacing.interCardGap),
+        StatCard(
+          label: 'Scholarships Awarded',
+          value: '${widget.data.scholarshipCount}',
+          icon: Icons.emoji_events_outlined,
+          pill: StatPill(
+            label: widget.data.schoolYear,
+            background: AppColors.infoBlueBg,
+            textColor: AppColors.infoBlueIcon,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Net Billed / Collected / Outstanding tiles + a Collection Rate readout —
+/// mirrors the real ASIA web admin dashboard's revenue strip
+/// (`DashboardPage.jsx`, `financialSummary.{net_billed,total_collected,
+/// outstanding}`), all from the same `financial-summary` endpoint already
+/// wired via `BillingApi.fetchFinancialSummary`. Guardian-blocked
+/// server-side but reachable for every staff role including accounting
+/// (`billing/views.py:268` only excludes `guardian`).
+class _FinancialSummaryCard extends StatelessWidget {
+  const _FinancialSummaryCard({
+    required this.summary,
+    required this.loading,
+    required this.onTapOutstanding,
+  });
+
+  final FinancialSummary? summary;
+  final bool loading;
+  final VoidCallback onTapOutstanding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardWhite,
+        borderRadius: BorderRadius.circular(AppRadii.dashboardCard),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 13, 16, 4),
+            child: Text(
+              'Financial Summary',
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.headingDark,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _RevenueTile(
+                    label: 'Net Billed',
+                    value: summary?.netBilled,
+                    loading: loading,
+                    icon: Icons.receipt_long_outlined,
+                    color: AppColors.infoBlueIcon,
+                    background: AppColors.infoBlueBg,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _RevenueTile(
+                    label: 'Collected',
+                    value: summary?.totalCollected,
+                    loading: loading,
+                    icon: Icons.payments_outlined,
+                    color: AppColors.successText,
+                    background: AppColors.successBg,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _RevenueTile(
+                    label: 'Outstanding',
+                    value: summary?.outstanding,
+                    loading: loading,
+                    icon: Icons.error_outline,
+                    color: AppColors.dangerText,
+                    background: AppColors.dangerBg,
+                    onTap: onTapOutstanding,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (!loading && summary != null)
+            Builder(
+              builder: (context) {
+                final s = summary!;
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 11,
+                  ),
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: AppColors.rowDivider),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Collection Rate',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 11.5,
+                          color: AppColors.textMuted3,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${s.collectedPercent}%',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.headingDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RevenueTile extends StatelessWidget {
+  const _RevenueTile({
+    required this.label,
+    required this.value,
+    required this.loading,
+    required this.icon,
+    required this.color,
+    required this.background,
+    this.onTap,
+  });
+
+  final String label;
+  final num? value;
+  final bool loading;
+  final IconData icon;
+  final Color color;
+  final Color background;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadii.dashboardCard),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppColors.dashboardBg,
+          borderRadius: BorderRadius.circular(AppRadii.dashboardCard),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                color: background,
+                borderRadius: BorderRadius.circular(AppRadii.iconChipSmall),
+              ),
+              child: Icon(icon, size: 12, color: color),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label.toUpperCase(),
+              style: GoogleFonts.dmSans(
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+                color: AppColors.labelUppercase2,
+              ),
+            ),
+            const SizedBox(height: 4),
+            loading
+                ? const SizedBox(
+                    height: 16,
+                    width: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(
+                    formatPeso(value ?? 0),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.headingDark,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -8,11 +8,14 @@ import '../../advisory/data/advisory_api.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../billing/data/billing_repository.dart';
 import '../../billing/data/enrollment_repository.dart';
+import '../../calendar/data/calendar_repository.dart';
 import '../../dashboard/data/dashboard_repository.dart';
 import '../../grades/data/grades_repository.dart';
 import '../../monitoring/data/audit_log_repository.dart';
 import '../../monitoring/data/teachers_repository.dart';
+import '../../narrative/data/narrative_repository.dart';
 import '../../shell/ui/app_shell.dart';
+import '../../staff/data/staff_repository.dart';
 import '../../students/data/students_repository.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -65,6 +68,9 @@ class _LoginScreenState extends State<LoginScreen> {
       final billingRepository = context.read<BillingRepository>();
       final enrollmentRepository = context.read<EnrollmentRepository>();
       final auditLogRepository = context.read<AuditLogRepository>();
+      final calendarRepository = context.read<CalendarRepository>();
+      final narrativeRepository = context.read<NarrativeRepository>();
+      final staffRepository = context.read<StaffRepository>();
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => AppShell(
@@ -77,6 +83,9 @@ class _LoginScreenState extends State<LoginScreen> {
             billingRepository: billingRepository,
             enrollmentRepository: enrollmentRepository,
             auditLogRepository: auditLogRepository,
+            calendarRepository: calendarRepository,
+            narrativeRepository: narrativeRepository,
+            staffRepository: staffRepository,
           ),
         ),
         (route) => false,

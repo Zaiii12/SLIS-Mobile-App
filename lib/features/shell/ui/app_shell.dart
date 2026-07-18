@@ -8,6 +8,8 @@ import '../../auth/state/auth_provider.dart';
 import '../../billing/data/billing_repository.dart';
 import '../../billing/data/enrollment_repository.dart';
 import '../../billing/ui/enrollments_list_screen.dart';
+import '../../calendar/data/calendar_repository.dart';
+import '../../calendar/ui/calendar_screen.dart';
 import '../../dashboard/data/dashboard_repository.dart';
 import '../../dashboard/ui/dashboard_screen.dart';
 import '../../dashboard/ui/financial_stats_screen.dart';
@@ -17,8 +19,9 @@ import '../../grades/ui/grade_overview_screen.dart';
 import '../../grades/ui/grades_screen.dart';
 import '../../monitoring/data/audit_log_repository.dart';
 import '../../monitoring/data/teachers_repository.dart';
-import '../../monitoring/ui/audit_log_screen.dart';
 import '../../monitoring/ui/monitoring_screen.dart';
+import '../../narrative/data/narrative_repository.dart';
+import '../../staff/data/staff_repository.dart';
 import '../../students/data/students_repository.dart';
 import '../../students/ui/students_list_screen.dart';
 import 'more_screen.dart';
@@ -32,7 +35,7 @@ enum ShellTab {
   gradeOverview,
   enrollments,
   monitoring,
-  auditLog,
+  calendar,
   financialStats,
   more,
 }
@@ -45,27 +48,42 @@ enum ShellTab {
 /// `GET /api/auth/users/` backing the teacher picker is gated to exactly
 /// this pair server-side (`ADMIN_ROLES` in `accounts/audit.py` — notably
 /// excludes `registrar`), so Monitoring can't be offered to registrar.
-/// Audit Log and Financial Stats are `staffAdmin`-only for the same reason:
-/// `GET /api/auth/audit-logs/` is gated to `ADMIN_ROLES` server-side, and
-/// financial-summary is view-only staff data, not something registrar or
-/// teacher have any backend access to.
+/// Audit Log moved out of the bottom nav entirely and lives as a row inside
+/// `MoreScreen`, gated to `staffAdmin` there — `GET /api/auth/audit-logs/`
+/// is gated to `ADMIN_ROLES` server-side, so accounting still has zero
+/// backend access to it. Financial Stats, however, is real `BILLING_ROLES`
+/// data (`super_admin`/`admin`/`accounting`), so `accounting` gets that tab
+/// too even though it doesn't get Monitoring/Audit Log.
 /// `teacher` keeps the original Attendance+Grades tabs (their own advisory
 /// roster, editable). `registrar` gets Grade Overview instead — a read-only,
 /// school-wide grade summary (see `GradeOverviewScreen`) — and no Attendance
 /// tab at all (out of scope per product decision, not a backend gap).
 /// `registrar` also gets Enrollments — read + quick-edit of section/status
 /// (see `EnrollmentsListScreen`); full enrollment intake stays web-only.
+/// `accounting` also gets Enrollments, but read-only — the backend's
+/// `IsStaffOrOwnerGuardianReadOnly` grants any staff role read access to
+/// every enrollment, write only to admin/super_admin/registrar
+/// (enrollment-service `accounts/permissions.py:169`) — see
+/// `EnrollmentsListScreen.readOnly`.
+/// Calendar (`GET /api/calendar-events/`, `IsAdminRegistrarOrReadOnly`) is
+/// readable by every authenticated non-guardian staff role, so every role
+/// gets the tab — placed immediately before More for all of them, including
+/// `staffAdmin` (which otherwise has no tab in that slot now that Audit Log
+/// moved to More).
 /// Unknown roles (including `guardian`, which is dead on the backend) fall
-/// back to the same Dashboard+Students+More default.
+/// back to the same Dashboard+Students+More default plus Calendar.
 List<ShellTab> _visibleTabsForRole(String role) {
   final tabs = [ShellTab.dashboard, ShellTab.students];
   if (hasAnyRole(role, staffAdmin)) {
-    tabs.addAll([ShellTab.monitoring, ShellTab.auditLog, ShellTab.financialStats]);
+    tabs.addAll([ShellTab.monitoring, ShellTab.financialStats]);
   } else if (role == roleTeacher) {
     tabs.addAll([ShellTab.attendance, ShellTab.grades]);
   } else if (role == roleRegistrar) {
     tabs.addAll([ShellTab.enrollments, ShellTab.gradeOverview]);
+  } else if (role == roleAccounting) {
+    tabs.addAll([ShellTab.financialStats, ShellTab.enrollments]);
   }
+  tabs.add(ShellTab.calendar);
   tabs.add(ShellTab.more);
   return tabs;
 }
@@ -86,6 +104,9 @@ class AppShell extends StatefulWidget {
     required this.billingRepository,
     required this.enrollmentRepository,
     required this.auditLogRepository,
+    required this.calendarRepository,
+    required this.narrativeRepository,
+    required this.staffRepository,
   });
 
   final DashboardRepository dashboardRepository;
@@ -97,6 +118,9 @@ class AppShell extends StatefulWidget {
   final BillingRepository billingRepository;
   final EnrollmentRepository enrollmentRepository;
   final AuditLogRepository auditLogRepository;
+  final CalendarRepository calendarRepository;
+  final NarrativeRepository narrativeRepository;
+  final StaffRepository staffRepository;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -127,7 +151,9 @@ class _AppShellState extends State<AppShell> {
 
     // If a role change (or restored session) makes the current tab
     // unavailable, fall back to Dashboard rather than rendering nothing.
-    final selected = visibleTabs.contains(_selected) ? _selected : ShellTab.dashboard;
+    final selected = visibleTabs.contains(_selected)
+        ? _selected
+        : ShellTab.dashboard;
 
     return Scaffold(
       body: IndexedStack(
@@ -138,7 +164,10 @@ class _AppShellState extends State<AppShell> {
             onNavigateToTab: _select,
           ),
           if (_visited.contains(ShellTab.students))
-            StudentsListScreen(repository: widget.studentsRepository)
+            StudentsListScreen(
+              repository: widget.studentsRepository,
+              enrollmentRepository: widget.enrollmentRepository,
+            )
           else
             const SizedBox.shrink(),
           if (_visited.contains(ShellTab.attendance))
@@ -154,7 +183,10 @@ class _AppShellState extends State<AppShell> {
           else
             const SizedBox.shrink(),
           if (_visited.contains(ShellTab.enrollments))
-            EnrollmentsListScreen(repository: widget.enrollmentRepository)
+            EnrollmentsListScreen(
+              repository: widget.enrollmentRepository,
+              readOnly: role == roleAccounting,
+            )
           else
             const SizedBox.shrink(),
           if (_visited.contains(ShellTab.monitoring))
@@ -166,15 +198,26 @@ class _AppShellState extends State<AppShell> {
             )
           else
             const SizedBox.shrink(),
-          if (_visited.contains(ShellTab.auditLog))
-            AuditLogScreen(repository: widget.auditLogRepository)
+          if (_visited.contains(ShellTab.calendar))
+            CalendarScreen(repository: widget.calendarRepository)
           else
             const SizedBox.shrink(),
           if (_visited.contains(ShellTab.financialStats))
-            FinancialStatsScreen(repository: widget.billingRepository)
+            FinancialStatsScreen(
+              repository: widget.billingRepository,
+              enrollmentRepository: widget.enrollmentRepository,
+            )
           else
             const SizedBox.shrink(),
-          if (_visited.contains(ShellTab.more)) const MoreScreen() else const SizedBox.shrink(),
+          if (_visited.contains(ShellTab.more))
+            MoreScreen(
+              auditLogRepository: widget.auditLogRepository,
+              narrativeRepository: widget.narrativeRepository,
+              attendanceRepository: widget.attendanceRepository,
+              staffRepository: widget.staffRepository,
+            )
+          else
+            const SizedBox.shrink(),
         ],
       ),
       bottomNavigationBar: ShellBottomNavBar(

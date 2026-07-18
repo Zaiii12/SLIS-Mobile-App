@@ -86,6 +86,19 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Changes the current user's own password. Throws [DioException] on
+  /// failure — the calling screen catches it and surfaces the server's
+  /// `detail` message (e.g. wrong current password).
+  Future<void> changeOwnPassword({
+    required String currentPassword,
+    required String newPassword,
+  }) {
+    return _authRepository.changeOwnPassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+  }
+
   /// Kicks off (without awaiting) the shared advisory fetch for roles that
   /// have Attendance/Grades access. Teacher requests are scoped to their
   /// own sections; staff roles get every section school-wide.

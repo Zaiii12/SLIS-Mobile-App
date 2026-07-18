@@ -42,7 +42,10 @@ class RecentStudentsCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               child: Text(
                 'No student records yet',
-                style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted3),
+                style: GoogleFonts.dmSans(
+                  fontSize: 12,
+                  color: AppColors.textMuted3,
+                ),
               ),
             )
           else
@@ -102,7 +105,10 @@ class _StudentRow extends StatelessWidget {
                 const SizedBox(height: 1),
                 Text(
                   'LRN ${student.lrn}',
-                  style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted3),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: AppColors.textMuted3,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -112,7 +118,9 @@ class _StudentRow extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: student.isActive ? AppColors.successBg : AppColors.neutralPillBg,
+              color: student.isActive
+                  ? AppColors.successBg
+                  : AppColors.neutralPillBg,
               borderRadius: BorderRadius.circular(AppRadii.pill),
             ),
             child: Text(
@@ -120,7 +128,9 @@ class _StudentRow extends StatelessWidget {
               style: GoogleFonts.dmSans(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
-                color: student.isActive ? AppColors.successText : AppColors.neutralPillText,
+                color: student.isActive
+                    ? AppColors.successText
+                    : AppColors.neutralPillText,
               ),
             ),
           ),

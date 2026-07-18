@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../auth/state/auth_provider.dart';
 import '../data/students_repository.dart';
 import '../models/student.dart';
+import 'student_status_pill.dart';
 
 class StudentDetailScreen extends StatefulWidget {
   const StudentDetailScreen({super.key, required this.student});
@@ -164,9 +165,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final statusBg = _student.isActive ? AppColors.successBg : AppColors.neutralPillBg;
-    final statusColor = _student.isActive ? AppColors.successText : AppColors.neutralPillText;
-
     return Scaffold(
       backgroundColor: AppColors.dashboardBg,
       appBar: AppBar(
@@ -237,21 +235,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                 style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted3),
               ),
               const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusBg,
-                  borderRadius: BorderRadius.circular(AppRadii.pill),
-                ),
-                child: Text(
-                  _student.isActive ? 'Active' : 'Inactive',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: statusColor,
-                  ),
-                ),
-              ),
+              StudentStatusPill(status: _student.statusValue, fontSize: 11),
             ],
           ),
           const SizedBox(height: AppSpacing.interCardGap),

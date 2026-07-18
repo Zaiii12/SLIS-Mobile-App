@@ -210,7 +210,10 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     return Scaffold(
       backgroundColor: AppColors.dashboardBg,
       appBar: AppBar(
-        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: Text(
           'Audit Monitoring',
           style: GoogleFonts.dmSans(

@@ -247,6 +247,7 @@ class _UnpaidInvoicesListScreenState extends State<UnpaidInvoicesListScreen> {
               return _InvoiceRow(
                 invoice: visible[index],
                 repository: widget.repository,
+                onChanged: () => _load(isRefresh: true),
               );
             },
           ),
@@ -377,10 +378,15 @@ class _FilterChip extends StatelessWidget {
 }
 
 class _InvoiceRow extends StatelessWidget {
-  const _InvoiceRow({required this.invoice, required this.repository});
+  const _InvoiceRow({
+    required this.invoice,
+    required this.repository,
+    required this.onChanged,
+  });
 
   final Invoice invoice;
   final BillingRepository repository;
+  final VoidCallback onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -389,12 +395,15 @@ class _InvoiceRow extends StatelessWidget {
     final overdueCount = invoice.overdueInstallmentCount;
 
     return InkWell(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) =>
-              InvoiceDetailScreen(invoice: invoice, repository: repository),
-        ),
-      ),
+      onTap: () async {
+        final changed = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(
+            builder: (_) =>
+                InvoiceDetailScreen(invoice: invoice, repository: repository),
+          ),
+        );
+        if (changed == true) onChanged();
+      },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(

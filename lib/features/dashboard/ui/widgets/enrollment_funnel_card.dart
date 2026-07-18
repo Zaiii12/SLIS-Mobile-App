@@ -96,7 +96,10 @@ class EnrollmentFunnelCard extends StatelessWidget {
               children: [
                 Text(
                   '$schoolYear · $total total',
-                  style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted3),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: AppColors.textMuted3,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 for (var i = 0; i < steps.length; i++) ...[
@@ -105,7 +108,11 @@ class EnrollmentFunnelCard extends StatelessWidget {
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 4),
                       child: Center(
-                        child: Icon(Icons.expand_more, size: 14, color: Color(0xFFD0B0B0)),
+                        child: Icon(
+                          Icons.expand_more,
+                          size: 14,
+                          color: Color(0xFFD0B0B0),
+                        ),
                       ),
                     ),
                 ],
@@ -119,7 +126,10 @@ class EnrollmentFunnelCard extends StatelessWidget {
                       children: [
                         Text(
                           'Enrollment rate',
-                          style: GoogleFonts.dmSans(fontSize: 11.5, color: AppColors.textMuted3),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 11.5,
+                            color: AppColors.textMuted3,
+                          ),
                         ),
                         Text(
                           '$enrollmentRate%',
@@ -181,7 +191,11 @@ class _FunnelStepRow extends StatelessWidget {
             ),
             Text(
               '${step.count}',
-              style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w700, color: step.color),
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: step.color,
+              ),
             ),
           ],
         ),
@@ -192,7 +206,9 @@ class _FunnelStepRow extends StatelessWidget {
             value: pct / 100,
             minHeight: 6,
             backgroundColor: AppColors.cardBorder,
-            valueColor: AlwaysStoppedAnimation(step.color.withValues(alpha: 0.85)),
+            valueColor: AlwaysStoppedAnimation(
+              step.color.withValues(alpha: 0.85),
+            ),
           ),
         ),
       ],

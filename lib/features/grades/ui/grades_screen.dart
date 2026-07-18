@@ -221,8 +221,8 @@ class _GradesScreenState extends State<GradesScreen> {
     }
   }
 
-  void _cycleSection(int sectionCount) {
-    setState(() => _sectionIndex = (_sectionIndex + 1) % sectionCount);
+  void _selectSectionIndex(int index) {
+    setState(() => _sectionIndex = index);
     _loadRoster();
   }
 
@@ -263,9 +263,8 @@ class _GradesScreenState extends State<GradesScreen> {
     _loadRoster();
   }
 
-  void _cycleSubject() {
-    if (_subjects.isEmpty) return;
-    setState(() => _subjectIndex = (_subjectIndex + 1) % _subjects.length);
+  void _selectSubjectIndex(int index) {
+    setState(() => _subjectIndex = index);
     _loadRoster();
   }
 
@@ -380,14 +379,25 @@ class _GradesScreenState extends State<GradesScreen> {
                 children: [
                   if (!isStaff)
                     Expanded(
-                      child: _PickerField(
-                        label: section.displayName,
-                        onTap: () => _cycleSection(sections.length),
+                      child: _IndexDropdown(
+                        value: _sectionIndex.clamp(0, sections.length - 1),
+                        items: [
+                          for (var i = 0; i < sections.length; i++)
+                            (value: i, label: sections[i].displayName),
+                        ],
+                        onChanged: _selectSectionIndex,
                       ),
                     ),
                   if (!isStaff) const SizedBox(width: 8),
                   Expanded(
-                    child: _PickerField(label: subject.name, onTap: _cycleSubject),
+                    child: _IndexDropdown(
+                      value: _subjectIndex.clamp(0, _subjects.length - 1),
+                      items: [
+                        for (var i = 0; i < _subjects.length; i++)
+                          (value: i, label: _subjects[i].name),
+                      ],
+                      onChanged: _selectSubjectIndex,
+                    ),
                   ),
                 ],
               ),
@@ -482,6 +492,49 @@ class _StaffSectionFilterRow extends StatelessWidget {
           child: _PickerField(label: filter.section, onTap: onCycleSection),
         ),
       ],
+    );
+  }
+}
+
+/// A real dropdown (tap opens a menu, pick from a list) over `(index, label)`
+/// pairs — same look and interaction as the admin Monitoring tab's
+/// `_FilterDropdown` (`monitoring_screen.dart`), used here for the teacher's
+/// Section and Subject pickers in place of the old tap-to-cycle
+/// [_PickerField]. Keyed by list index rather than a string id since neither
+/// [SectionAdvisory] nor [Subject] has a stable string value handy at this
+/// call site the way Monitoring's school-level/grade-level strings do.
+class _IndexDropdown extends StatelessWidget {
+  const _IndexDropdown({required this.value, required this.items, required this.onChanged});
+
+  final int value;
+  final List<({int value, String label})> items;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.inputBg,
+        borderRadius: BorderRadius.circular(AppRadii.input),
+        border: Border.all(color: AppColors.inputBorder, width: 1.5),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          value: value,
+          isExpanded: true,
+          icon: const Icon(Icons.expand_more, size: 16, color: AppColors.textMuted2),
+          borderRadius: BorderRadius.circular(AppRadii.input),
+          style: GoogleFonts.dmSans(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.headingDark),
+          items: [
+            for (final item in items)
+              DropdownMenuItem(value: item.value, child: Text(item.label, overflow: TextOverflow.ellipsis)),
+          ],
+          onChanged: (next) {
+            if (next != null) onChanged(next);
+          },
+        ),
+      ),
     );
   }
 }

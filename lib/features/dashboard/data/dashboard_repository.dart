@@ -4,30 +4,8 @@ import '../../../core/auth/roles.dart';
 import '../models/dashboard_data.dart';
 import 'dashboard_api.dart';
 
-/// Static Announcements & Forms feed. No backend model/endpoint exists for
-/// this yet (see handoff doc) — kept as placeholder content until a real
-/// announcements endpoint is added to enrollment-service or a shared service.
-const _placeholderAnnouncements = [
-  Announcement(
-    category: AnnouncementCategory.enrollment,
-    title: 'Enrollment period closes July 15',
-    relativeTime: '2 hours ago',
-  ),
-  Announcement(
-    category: AnnouncementCategory.form,
-    title: 'New SF10 form template uploaded',
-    relativeTime: '1 day ago',
-  ),
-  Announcement(
-    category: AnnouncementCategory.deadline,
-    title: 'Grade submission deadline: July 20',
-    relativeTime: '2 days ago',
-  ),
-];
-
 /// Provides Dashboard data. Stat cards and today's attendance are fetched
-/// live from student-service / enrollment-service via [DashboardApi];
-/// Announcements & Forms has no backing endpoint yet, so it stays static.
+/// live from student-service / enrollment-service via [DashboardApi].
 class DashboardRepository {
   DashboardRepository(this._api);
 
@@ -103,11 +81,15 @@ class DashboardRepository {
       unpaidInvoices = _fallbackUnpaidInvoices;
     }
 
-    // Scholarships Awarded is admin/super_admin-only (matches the ASIA web
-    // dashboard's own layout) — skip the call for every other role.
+    // Scholarships Awarded: `GET /api/enrollment-scholarships/` is
+    // `IsAdminRegistrarOrReadOnly` server-side (enrollment-service
+    // `scholarships/views.py:40`) — any authenticated role can read, so
+    // staffAdmin/registrar/accounting all see this stat; only teacher has no
+    // real use for it (matches its dashboard body, which has no stat-card
+    // row at all).
     var scholarshipCountIsLive = true;
     int scholarshipCount;
-    if (hasAnyRole(role, staffAdmin)) {
+    if (role != roleTeacher) {
       scholarshipCount = await _api.fetchScholarshipCount().catchError((
         error,
         stackTrace,
@@ -133,7 +115,6 @@ class DashboardRepository {
       unpaidInvoices: unpaidInvoices,
       scholarshipCount: scholarshipCount,
       attendance: attendance,
-      announcements: _placeholderAnnouncements,
       statsAreLive: statsAreLive,
       attendanceIsLive: attendanceIsLive,
       unpaidInvoicesAreLive: unpaidInvoicesAreLive,

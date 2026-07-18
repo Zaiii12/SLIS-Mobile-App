@@ -1,3 +1,55 @@
+/// The real `Student.status` choices (`students/models.py` in
+/// student-service) — five values, not just active/inactive.
+enum StudentStatus { active, inactive, transferred, graduated, dropped }
+
+extension StudentStatusLabel on StudentStatus {
+  String get label {
+    switch (this) {
+      case StudentStatus.active:
+        return 'Active';
+      case StudentStatus.inactive:
+        return 'Inactive';
+      case StudentStatus.transferred:
+        return 'Transferred';
+      case StudentStatus.graduated:
+        return 'Graduated';
+      case StudentStatus.dropped:
+        return 'Dropped';
+    }
+  }
+
+  /// The exact `status` query param value the backend expects.
+  String get apiValue {
+    switch (this) {
+      case StudentStatus.active:
+        return 'active';
+      case StudentStatus.inactive:
+        return 'inactive';
+      case StudentStatus.transferred:
+        return 'transferred';
+      case StudentStatus.graduated:
+        return 'graduated';
+      case StudentStatus.dropped:
+        return 'dropped';
+    }
+  }
+}
+
+StudentStatus studentStatusFromJson(String value) {
+  switch (value) {
+    case 'active':
+      return StudentStatus.active;
+    case 'transferred':
+      return StudentStatus.transferred;
+    case 'graduated':
+      return StudentStatus.graduated;
+    case 'dropped':
+      return StudentStatus.dropped;
+    default:
+      return StudentStatus.inactive;
+  }
+}
+
 /// A student record from student-service's `GET /api/students/`. Field
 /// names confirmed against a live response — the name is split across
 /// first/middle/last/suffix, and there is no level/enrollment_status/
@@ -103,6 +155,11 @@ class Student {
   }
 
   bool get isActive => status == 'active';
+
+  /// One of `active`/`inactive`/`transferred`/`graduated`/`dropped` — the
+  /// real `Student.status` choices (`students/models.py`), matching ASIA
+  /// web's `STATUS_META`/`STATUS_FILTERS`.
+  StudentStatus get statusValue => studentStatusFromJson(status);
 
   /// Two-letter initials for the list/detail avatar, e.g. "MG" for "Isabella Garcia".
   String get initials {

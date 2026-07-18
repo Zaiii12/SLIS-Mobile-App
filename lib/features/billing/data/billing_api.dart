@@ -119,6 +119,102 @@ class BillingApi {
     );
   }
 
+  /// `POST /api/payments/` — records a payment against one invoice.
+  /// Server-side `apply_payment()` distributes the amount across
+  /// installments and flips the invoice's `status` automatically; it also
+  /// guards against overpayment itself (400 with a peso-formatted message
+  /// comparing `amount_paid` against the computed `balance`), so no
+  /// client-side balance check is duplicated here. Gated to `BILLING_ROLES`
+  /// server-side (`billing/views.py`).
+  Future<Invoice> recordPayment({
+    required String invoiceId,
+    required num amountPaid,
+    required String paymentMethod,
+    String? referenceNumber,
+    String? notes,
+  }) async {
+    await _billing.post(
+      '/api/payments/',
+      data: {
+        'invoice': invoiceId,
+        'amount_paid': amountPaid,
+        'payment_method': paymentMethod,
+        if (referenceNumber != null && referenceNumber.isNotEmpty)
+          'reference_number': referenceNumber,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+      },
+    );
+    return fetchInvoiceDetail(invoiceId);
+  }
+
+  /// `PATCH /api/payments/{id}/` — restricted to [paymentMethod]/
+  /// [referenceNumber]/[notes] only. `amount_paid`/`payment_date`/`invoice`
+  /// are deliberately never sent from this client even though
+  /// `StudentPaymentSerializer` would accept them: `perform_create()` is the
+  /// only place that calls `apply_payment()` to distribute an amount across
+  /// installments and recompute the invoice's status — a plain
+  /// `ModelViewSet.partial_update()` on this endpoint does NOT re-run it, so
+  /// editing `amount_paid` here would silently desync the invoice's
+  /// `status`/installment `amount_paid` from the payment history. Treat this
+  /// as "acknowledge/correct how a payment was recorded," not "change how
+  /// much was paid." Delete is intentionally not exposed for the same
+  /// reason — removing a payment doesn't reverse `apply_payment()` either.
+  Future<PaymentRecord> updatePayment({
+    required String paymentId,
+    String? paymentMethod,
+    String? referenceNumber,
+    String? notes,
+  }) async {
+    final response = await _billing.patch(
+      '/api/payments/$paymentId/',
+      data: {
+        if (paymentMethod != null) 'payment_method': paymentMethod,
+        if (referenceNumber != null) 'reference_number': referenceNumber,
+        if (notes != null) 'notes': notes,
+      },
+    );
+    return PaymentRecord.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// `POST /api/invoices/generate/` — idempotent: if an invoice already
+  /// exists for this enrollment (any non-void status), the server returns
+  /// that existing invoice instead of creating a duplicate
+  /// (`generate_invoice_for_enrollment`, billing/services.py:319), so a
+  /// retried/double tap can't create two invoices for the same enrollment.
+  /// All fee items/discounts/installments are computed server-side from the
+  /// enrollment's fee schedule — nothing else to send from the client.
+  Future<Invoice> generateInvoice({
+    required String enrollmentId,
+    required String paymentPlan,
+  }) async {
+    final response = await _billing.post(
+      '/api/invoices/generate/',
+      data: {'enrollment_id': enrollmentId, 'payment_plan': paymentPlan},
+    );
+    return Invoice.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// `PATCH /api/invoices/{id}/` — restricted to [dueDate]/[paymentPlan]
+  /// only. `status` is deliberately never sent from this client: it's the
+  /// only other writable field on `StudentInvoiceSerializer`, but there's no
+  /// dedicated void action or payment-reversal logic backing a raw
+  /// `status: void` write (confirmed in billing/views.py), so that path
+  /// stays unsafe for a mobile quick-edit and is intentionally not exposed.
+  Future<Invoice> updateInvoice({
+    required String invoiceId,
+    String? dueDate,
+    String? paymentPlan,
+  }) async {
+    final response = await _billing.patch(
+      '/api/invoices/$invoiceId/',
+      data: {
+        if (dueDate != null) 'due_date': dueDate,
+        if (paymentPlan != null) 'payment_plan': paymentPlan,
+      },
+    );
+    return Invoice.fromJson(response.data as Map<String, dynamic>);
+  }
+
   /// Resolves the primary guardian contact for an invoice's student.
   ///
   /// billing-service's `enrollment_detail` (StudentInvoiceSerializer) doesn't

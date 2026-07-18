@@ -28,4 +28,56 @@ class BillingRepository {
   Future<PaymentsPage> fetchPayments({String? paymentMethod, int page = 1}) {
     return _api.fetchPayments(paymentMethod: paymentMethod, page: page);
   }
+
+  Future<Invoice> recordPayment({
+    required String invoiceId,
+    required num amountPaid,
+    required String paymentMethod,
+    String? referenceNumber,
+    String? notes,
+  }) {
+    return _api.recordPayment(
+      invoiceId: invoiceId,
+      amountPaid: amountPaid,
+      paymentMethod: paymentMethod,
+      referenceNumber: referenceNumber,
+      notes: notes,
+    );
+  }
+
+  Future<Invoice> generateInvoice({
+    required String enrollmentId,
+    required String paymentPlan,
+  }) {
+    return _api.generateInvoice(
+      enrollmentId: enrollmentId,
+      paymentPlan: paymentPlan,
+    );
+  }
+
+  Future<Invoice> updateInvoice({
+    required String invoiceId,
+    String? dueDate,
+    String? paymentPlan,
+  }) {
+    return _api.updateInvoice(
+      invoiceId: invoiceId,
+      dueDate: dueDate,
+      paymentPlan: paymentPlan,
+    );
+  }
+
+  Future<PaymentRecord> updatePayment({
+    required String paymentId,
+    String? paymentMethod,
+    String? referenceNumber,
+    String? notes,
+  }) {
+    return _api.updatePayment(
+      paymentId: paymentId,
+      paymentMethod: paymentMethod,
+      referenceNumber: referenceNumber,
+      notes: notes,
+    );
+  }
 }

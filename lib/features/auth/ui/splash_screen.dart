@@ -6,11 +6,14 @@ import '../../advisory/data/advisory_api.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../billing/data/billing_repository.dart';
 import '../../billing/data/enrollment_repository.dart';
+import '../../calendar/data/calendar_repository.dart';
 import '../../dashboard/data/dashboard_repository.dart';
 import '../../grades/data/grades_repository.dart';
 import '../../monitoring/data/audit_log_repository.dart';
 import '../../monitoring/data/teachers_repository.dart';
+import '../../narrative/data/narrative_repository.dart';
 import '../../shell/ui/app_shell.dart';
+import '../../staff/data/staff_repository.dart';
 import '../../students/data/students_repository.dart';
 import '../state/auth_provider.dart';
 import 'login_screen.dart';
@@ -47,6 +50,9 @@ class _SplashScreenState extends State<SplashScreen> {
             billingRepository: context.read<BillingRepository>(),
             enrollmentRepository: context.read<EnrollmentRepository>(),
             auditLogRepository: context.read<AuditLogRepository>(),
+            calendarRepository: context.read<CalendarRepository>(),
+            narrativeRepository: context.read<NarrativeRepository>(),
+            staffRepository: context.read<StaffRepository>(),
           )
         : const LoginScreen();
 

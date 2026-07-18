@@ -51,6 +51,11 @@ const _paymentPlanLabels = {
 
 String formatPaymentPlan(String plan) => _paymentPlanLabels[plan] ?? plan;
 
+/// `payment_plan` choices per `StudentInvoice.PAYMENT_PLAN_CHOICES`
+/// (billing/models.py) — used to populate the Generate/Edit Invoice
+/// dropdowns.
+const paymentPlans = ['monthly', 'quarterly', 'semi_annual', 'annual'];
+
 const _paymentMethodLabels = {
   'cash': 'Cash',
   'bank_transfer': 'Bank Transfer',
@@ -62,6 +67,17 @@ const _paymentMethodLabels = {
 
 String formatPaymentMethod(String method) =>
     _paymentMethodLabels[method] ?? method;
+
+/// `payment_method` choices per `StudentPayment.PAYMENT_METHOD_CHOICES`
+/// (billing/models.py) — used to populate the Record Payment dropdown.
+const paymentMethods = [
+  'cash',
+  'bank_transfer',
+  'gcash',
+  'card',
+  'check',
+  'others',
+];
 
 class StatusStyle {
   const StatusStyle(this.label, this.background, this.textColor);
@@ -110,10 +126,26 @@ StatusStyle installmentStatusStyle(String status) =>
 /// `enrollment_status` choices per enrollment-service's `Enrollment.
 /// STATUS_CHOICES` (enrollments/models.py).
 const _enrollmentStatusStyles = {
-  'enrolled': StatusStyle('Enrolled', AppColors.successBg, AppColors.successText),
-  'pending': StatusStyle('Pending', AppColors.warningBg, AppColors.warningText2),
-  'cancelled': StatusStyle('Cancelled', AppColors.dangerBg, AppColors.dangerText),
-  'completed': StatusStyle('Completed', AppColors.infoBlueBg, AppColors.infoBlueIcon),
+  'enrolled': StatusStyle(
+    'Enrolled',
+    AppColors.successBg,
+    AppColors.successText,
+  ),
+  'pending': StatusStyle(
+    'Pending',
+    AppColors.warningBg,
+    AppColors.warningText2,
+  ),
+  'cancelled': StatusStyle(
+    'Cancelled',
+    AppColors.dangerBg,
+    AppColors.dangerText,
+  ),
+  'completed': StatusStyle(
+    'Completed',
+    AppColors.infoBlueBg,
+    AppColors.infoBlueIcon,
+  ),
   'transferred_out': StatusStyle(
     'Transferred Out',
     AppColors.neutralPillBg,

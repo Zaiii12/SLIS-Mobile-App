@@ -20,7 +20,14 @@ const _kAllStatuses = 'all';
 const _gradeLevelsByLevel = {
   SchoolLevel.nursery: ['Nursery'],
   SchoolLevel.kindergarten: ['Kindergarten'],
-  SchoolLevel.elementary: ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'],
+  SchoolLevel.elementary: [
+    'Grade 1',
+    'Grade 2',
+    'Grade 3',
+    'Grade 4',
+    'Grade 5',
+    'Grade 6',
+  ],
   SchoolLevel.juniorHighschool: ['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10'],
   SchoolLevel.seniorHighschool: ['Grade 11', 'Grade 12'],
 };
@@ -32,10 +39,22 @@ const _gradeLevelsByLevel = {
 /// for quick-edit of section/status — full enrollment intake stays web-only
 /// (see `Enrollment`'s doc comment for why grade/level/strand/semester
 /// aren't editable here).
+///
+/// [readOnly] disables the detail screen's edit affordance entirely — set
+/// for `accounting`/`admin`/`super_admin`, who have real backend read access
+/// to every enrollment (`IsStaffOrOwnerGuardianReadOnly`,
+/// enrollment-service `accounts/permissions.py:169`) but not write: only
+/// `registrar` (plus admin/super_admin, who already have their own
+/// Monitoring-based views) gets the section/status quick-edit.
 class EnrollmentsListScreen extends StatefulWidget {
-  const EnrollmentsListScreen({super.key, required this.repository});
+  const EnrollmentsListScreen({
+    super.key,
+    required this.repository,
+    this.readOnly = false,
+  });
 
   final EnrollmentRepository repository;
+  final bool readOnly;
 
   @override
   State<EnrollmentsListScreen> createState() => _EnrollmentsListScreenState();
@@ -53,9 +72,13 @@ class _EnrollmentsListScreenState extends State<EnrollmentsListScreen> {
 
   List<String> get _availableGradeLevels {
     if (_schoolLevel == _kAllSchoolLevels) {
-      return [for (final level in SchoolLevel.values) ...?_gradeLevelsByLevel[level]];
+      return [
+        for (final level in SchoolLevel.values) ...?_gradeLevelsByLevel[level],
+      ];
     }
-    final level = SchoolLevel.values.firstWhere((l) => schoolLevelToJson(l) == _schoolLevel);
+    final level = SchoolLevel.values.firstWhere(
+      (l) => schoolLevelToJson(l) == _schoolLevel,
+    );
     return _gradeLevelsByLevel[level] ?? const [];
   }
 
@@ -121,6 +144,7 @@ class _EnrollmentsListScreenState extends State<EnrollmentsListScreen> {
         builder: (_) => EnrollmentDetailScreen(
           repository: widget.repository,
           enrollment: enrollment,
+          readOnly: widget.readOnly,
         ),
       ),
     );
@@ -163,7 +187,8 @@ class _EnrollmentsListScreenState extends State<EnrollmentsListScreen> {
         return ListView.separated(
           padding: EdgeInsets.zero,
           itemCount: _enrollments.length,
-          separatorBuilder: (_, _) => const Divider(height: 1, color: AppColors.rowDivider),
+          separatorBuilder: (_, _) =>
+              const Divider(height: 1, color: AppColors.rowDivider),
           itemBuilder: (context, index) => _EnrollmentRow(
             enrollment: _enrollments[index],
             onTap: () => _openEnrollment(_enrollments[index]),
@@ -209,18 +234,32 @@ class _Header extends StatelessWidget {
         children: [
           Text(
             'Enrollments',
-            style: GoogleFonts.dmSans(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.headingDark),
+            style: GoogleFonts.dmSans(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: AppColors.headingDark,
+            ),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: controller,
             onChanged: onChanged,
-            style: GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF2D1A1A)),
+            style: GoogleFonts.dmSans(
+              fontSize: 13,
+              color: const Color(0xFF2D1A1A),
+            ),
             decoration: InputDecoration(
               isDense: true,
               hintText: 'Search student name or LRN',
-              hintStyle: GoogleFonts.dmSans(fontSize: 13, color: AppColors.iconMuted),
-              prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.iconMuted),
+              hintStyle: GoogleFonts.dmSans(
+                fontSize: 13,
+                color: AppColors.iconMuted,
+              ),
+              prefixIcon: const Icon(
+                Icons.search,
+                size: 18,
+                color: AppColors.iconMuted,
+              ),
               contentPadding: const EdgeInsets.symmetric(vertical: 9),
             ),
           ),
@@ -246,7 +285,8 @@ class _Header extends StatelessWidget {
                   allValue: _kAllGradeLevels,
                   value: gradeLevel,
                   items: [
-                    for (final grade in availableGradeLevels) (value: grade, label: grade),
+                    for (final grade in availableGradeLevels)
+                      (value: grade, label: grade),
                   ],
                   onChanged: onGradeLevelChanged,
                 ),
@@ -259,7 +299,8 @@ class _Header extends StatelessWidget {
             allValue: _kAllStatuses,
             value: status,
             items: [
-              for (final s in enrollmentStatuses) (value: s, label: enrollmentStatusLabel(s)),
+              for (final s in enrollmentStatuses)
+                (value: s, label: enrollmentStatusLabel(s)),
             ],
             onChanged: onStatusChanged,
           ),
@@ -301,13 +342,27 @@ class _FilterDropdown extends StatelessWidget {
         child: DropdownButton<String>(
           value: value,
           isExpanded: true,
-          icon: const Icon(Icons.expand_more, size: 16, color: AppColors.textMuted2),
+          icon: const Icon(
+            Icons.expand_more,
+            size: 16,
+            color: AppColors.textMuted2,
+          ),
           borderRadius: BorderRadius.circular(AppRadii.input),
-          style: GoogleFonts.dmSans(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.headingDark),
+          style: GoogleFonts.dmSans(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: AppColors.headingDark,
+          ),
           items: [
-            DropdownMenuItem(value: allValue, child: Text(allLabel, overflow: TextOverflow.ellipsis)),
+            DropdownMenuItem(
+              value: allValue,
+              child: Text(allLabel, overflow: TextOverflow.ellipsis),
+            ),
             for (final item in items)
-              DropdownMenuItem(value: item.value, child: Text(item.label, overflow: TextOverflow.ellipsis)),
+              DropdownMenuItem(
+                value: item.value,
+                child: Text(item.label, overflow: TextOverflow.ellipsis),
+              ),
           ],
           onChanged: (next) {
             if (next != null) onChanged(next);
@@ -337,11 +392,18 @@ class _EnrollmentRow extends StatelessWidget {
             Container(
               width: 38,
               height: 38,
-              decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFFDF3F2)),
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFFFDF3F2),
+              ),
               child: Center(
                 child: Text(
                   enrollment.initials,
-                  style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
             ),
@@ -352,13 +414,20 @@ class _EnrollmentRow extends StatelessWidget {
                 children: [
                   Text(
                     enrollment.studentName,
-                    style: GoogleFonts.dmSans(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.headingDark),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.headingDark,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 1),
                   Text(
                     '${enrollment.gradeLevel} - ${enrollment.section} · S.Y. ${enrollment.schoolYear}',
-                    style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted3),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      color: AppColors.textMuted3,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
@@ -372,7 +441,11 @@ class _EnrollmentRow extends StatelessWidget {
               ),
               child: Text(
                 style.label,
-                style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w700, color: style.textColor),
+                style: GoogleFonts.dmSans(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: style.textColor,
+                ),
               ),
             ),
             const SizedBox(width: 4),
@@ -399,12 +472,19 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'No enrollments found',
-              style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted1),
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textMuted1,
+              ),
             ),
             const SizedBox(height: 2),
             Text(
               'Try a different name, LRN, or filter',
-              style: GoogleFonts.dmSans(fontSize: 11.5, color: AppColors.textMuted3),
+              style: GoogleFonts.dmSans(
+                fontSize: 11.5,
+                color: AppColors.textMuted3,
+              ),
             ),
           ],
         ),
@@ -430,14 +510,21 @@ class _ErrorState extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               "Couldn't load enrollments",
-              style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted1),
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textMuted1,
+              ),
             ),
             const SizedBox(height: 12),
             TextButton(
               onPressed: onRetry,
               child: Text(
                 'Retry',
-                style: GoogleFonts.dmSans(fontWeight: FontWeight.w700, color: AppColors.primary),
+                style: GoogleFonts.dmSans(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
               ),
             ),
           ],

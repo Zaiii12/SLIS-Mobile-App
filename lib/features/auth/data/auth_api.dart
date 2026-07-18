@@ -64,4 +64,26 @@ class AuthApi {
     final response = await _dio.get('/api/auth/users/$id/');
     return User.fromJson(response.data as Map<String, dynamic>);
   }
+
+  /// Self-service password change — folded into the general user-update
+  /// endpoint server-side (`UserDetailView.patch`, `identity-service`
+  /// `accounts/views.py`), not a dedicated `/change-password/` route.
+  /// `current_password` is required and verified server-side whenever the
+  /// caller is editing their own [id] (always true here, since this is only
+  /// ever called with the logged-in user's own id) — a wrong current
+  /// password returns 400 `{"detail": "Current password is incorrect."}`,
+  /// left for the caller to surface via [DioException].
+  Future<void> changePassword({
+    required String id,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await _dio.patch(
+      '/api/auth/users/$id/',
+      data: {
+        'current_password': currentPassword,
+        'new_password': newPassword,
+      },
+    );
+  }
 }

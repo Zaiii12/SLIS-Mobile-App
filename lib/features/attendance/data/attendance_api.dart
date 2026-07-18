@@ -20,12 +20,24 @@ class AttendanceApi {
 
   /// Per `attendance/views.py`'s `summary` action: takes `date_from`/
   /// `date_to` (a single day is both set to the same date) and returns
-  /// counts nested under `totals`, not as flat top-level fields.
-  Future<AttendanceBreakdown> fetchSummary(DateTime date) async {
+  /// counts nested under `totals`, not as flat top-level fields. The
+  /// `summary` action already filters to the caller's own students
+  /// server-side for `role == "teacher"` (via `teacher_student_ids()`), so
+  /// no client-side scoping is needed for a teacher caller.
+  Future<AttendanceBreakdown> fetchSummary(
+    DateTime date, {
+    String? gradeLevel,
+    String? section,
+  }) async {
     final isoDate = _isoDate(date);
     final response = await _enrollment.get(
       '/api/attendance/summary/',
-      queryParameters: {'date_from': isoDate, 'date_to': isoDate},
+      queryParameters: {
+        'date_from': isoDate,
+        'date_to': isoDate,
+        if (gradeLevel != null) 'grade_level': gradeLevel,
+        if (section != null) 'section': section,
+      },
     );
     final data = response.data as Map<String, dynamic>;
     final totals = data['totals'] as Map<String, dynamic>? ?? const {};

@@ -12,12 +12,14 @@ class StudentsRepository {
   Future<StudentsPage> fetchStudents({
     String? search,
     String? status,
+    String? sex,
     String? ordering,
     int page = 1,
   }) {
     return _api.fetchStudents(
       search: search,
       status: status,
+      sex: sex,
       ordering: ordering,
       page: page,
     );

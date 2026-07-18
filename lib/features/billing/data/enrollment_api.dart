@@ -103,15 +103,22 @@ class EnrollmentApi {
       '/api/enrollments/',
       queryParameters: {
         'enrollment_status': 'enrolled',
-        if (schoolYear != null && schoolYear.isNotEmpty) 'school_year': schoolYear,
-        if (schoolLevel != null && schoolLevel.isNotEmpty) 'school_level': schoolLevel,
-        if (gradeLevel != null && gradeLevel.isNotEmpty) 'grade_level': gradeLevel,
+        if (schoolYear != null && schoolYear.isNotEmpty)
+          'school_year': schoolYear,
+        if (schoolLevel != null && schoolLevel.isNotEmpty)
+          'school_level': schoolLevel,
+        if (gradeLevel != null && gradeLevel.isNotEmpty)
+          'grade_level': gradeLevel,
         if (search != null && search.isNotEmpty) 'search': search,
         'page_size': 500,
       },
     );
     final data = response.data;
-    final results = (data is Map<String, dynamic> ? data['results'] as List? : data as List?) ?? [];
+    final results =
+        (data is Map<String, dynamic>
+            ? data['results'] as List?
+            : data as List?) ??
+        [];
     final enrollments = results.cast<Map<String, dynamic>>();
 
     final gradeLists = await Future.wait(
@@ -121,7 +128,8 @@ class EnrollmentApi {
           queryParameters: {'enrollment': e['enrollment_id'], 'page_size': 500},
         );
         final gradesData = gradesResponse.data;
-        final gradesResults = (gradesData is Map<String, dynamic>
+        final gradesResults =
+            (gradesData is Map<String, dynamic>
                 ? gradesData['results'] as List?
                 : gradesData as List?) ??
             [];
@@ -130,7 +138,8 @@ class EnrollmentApi {
     );
 
     return [
-      for (var i = 0; i < enrollments.length; i++) _buildOverviewRow(enrollments[i], gradeLists[i]),
+      for (var i = 0; i < enrollments.length; i++)
+        _buildOverviewRow(enrollments[i], gradeLists[i]),
     ];
   }
 
@@ -154,7 +163,9 @@ class EnrollmentApi {
       studentName: enrollment['student_name'] as String? ?? '',
       lrn: studentDetail?['lrn'] as String? ?? '',
       studentNumber: studentDetail?['student_number'] as String? ?? '',
-      schoolLevel: schoolLevelFromJson(enrollment['school_level'] as String? ?? ''),
+      schoolLevel: schoolLevelFromJson(
+        enrollment['school_level'] as String? ?? '',
+      ),
       gradeLevel: enrollment['grade_level'] as String? ?? '',
       section: enrollment['section'] as String? ?? '',
       schoolYear: enrollment['school_year'] as String? ?? '',
@@ -181,17 +192,28 @@ class EnrollmentApi {
     final response = await _enrollment.get(
       '/api/enrollments/',
       queryParameters: {
-        if (schoolYear != null && schoolYear.isNotEmpty) 'school_year': schoolYear,
-        if (schoolLevel != null && schoolLevel.isNotEmpty) 'school_level': schoolLevel,
-        if (gradeLevel != null && gradeLevel.isNotEmpty) 'grade_level': gradeLevel,
-        if (enrollmentStatus != null && enrollmentStatus.isNotEmpty) 'enrollment_status': enrollmentStatus,
+        if (schoolYear != null && schoolYear.isNotEmpty)
+          'school_year': schoolYear,
+        if (schoolLevel != null && schoolLevel.isNotEmpty)
+          'school_level': schoolLevel,
+        if (gradeLevel != null && gradeLevel.isNotEmpty)
+          'grade_level': gradeLevel,
+        if (enrollmentStatus != null && enrollmentStatus.isNotEmpty)
+          'enrollment_status': enrollmentStatus,
         if (search != null && search.isNotEmpty) 'search': search,
         'page_size': 500,
       },
     );
     final data = response.data;
-    final results = (data is Map<String, dynamic> ? data['results'] as List? : data as List?) ?? [];
-    return results.cast<Map<String, dynamic>>().map(Enrollment.fromJson).toList();
+    final results =
+        (data is Map<String, dynamic>
+            ? data['results'] as List?
+            : data as List?) ??
+        [];
+    return results
+        .cast<Map<String, dynamic>>()
+        .map(Enrollment.fromJson)
+        .toList();
   }
 
   Future<Enrollment> fetchEnrollment(String enrollmentId) async {

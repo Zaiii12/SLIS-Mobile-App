@@ -19,6 +19,8 @@ import 'features/billing/data/billing_api.dart';
 import 'features/billing/data/billing_repository.dart';
 import 'features/billing/data/enrollment_api.dart';
 import 'features/billing/data/enrollment_repository.dart';
+import 'features/calendar/data/calendar_api.dart';
+import 'features/calendar/data/calendar_repository.dart';
 import 'features/dashboard/data/dashboard_api.dart';
 import 'features/dashboard/data/dashboard_repository.dart';
 import 'features/grades/data/grades_api.dart';
@@ -27,6 +29,10 @@ import 'features/monitoring/data/audit_log_api.dart';
 import 'features/monitoring/data/audit_log_repository.dart';
 import 'features/monitoring/data/teachers_api.dart';
 import 'features/monitoring/data/teachers_repository.dart';
+import 'features/narrative/data/narrative_api.dart';
+import 'features/narrative/data/narrative_repository.dart';
+import 'features/staff/data/staff_api.dart';
+import 'features/staff/data/staff_repository.dart';
 import 'features/students/data/students_api.dart';
 import 'features/students/data/students_repository.dart';
 
@@ -112,6 +118,10 @@ void main() {
     AuditLogApi(dioClientFactory.identity),
   );
 
+  final calendarRepository = CalendarRepository(
+    CalendarApi(dioClientFactory.enrollment),
+  );
+
   final studentsRepository = StudentsRepository(
     StudentsApi(dioClientFactory.student),
   );
@@ -122,6 +132,14 @@ void main() {
 
   final gradesRepository = GradesRepository(
     GradesApi(dioClientFactory.enrollment),
+  );
+
+  final narrativeRepository = NarrativeRepository(
+    NarrativeApi(dioClientFactory.enrollment),
+  );
+
+  final staffRepository = StaffRepository(
+    StaffApi(dioClientFactory.identity),
   );
 
   runApp(
@@ -137,6 +155,9 @@ void main() {
       gradesRepository: gradesRepository,
       teachersRepository: teachersRepository,
       auditLogRepository: auditLogRepository,
+      calendarRepository: calendarRepository,
+      narrativeRepository: narrativeRepository,
+      staffRepository: staffRepository,
     ),
   );
 }
@@ -155,6 +176,9 @@ class SlisMobileApp extends StatefulWidget {
     required this.gradesRepository,
     required this.teachersRepository,
     required this.auditLogRepository,
+    required this.calendarRepository,
+    required this.narrativeRepository,
+    required this.staffRepository,
   });
 
   final AuthRepository authRepository;
@@ -168,6 +192,9 @@ class SlisMobileApp extends StatefulWidget {
   final GradesRepository gradesRepository;
   final TeachersRepository teachersRepository;
   final AuditLogRepository auditLogRepository;
+  final CalendarRepository calendarRepository;
+  final NarrativeRepository narrativeRepository;
+  final StaffRepository staffRepository;
 
   @override
   State<SlisMobileApp> createState() => _SlisMobileAppState();
@@ -244,6 +271,9 @@ class _SlisMobileAppState extends State<SlisMobileApp>
         Provider.value(value: widget.gradesRepository),
         Provider.value(value: widget.teachersRepository),
         Provider.value(value: widget.auditLogRepository),
+        Provider.value(value: widget.calendarRepository),
+        Provider.value(value: widget.narrativeRepository),
+        Provider.value(value: widget.staffRepository),
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,

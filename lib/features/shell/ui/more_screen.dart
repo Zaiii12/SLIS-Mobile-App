@@ -4,10 +4,18 @@ import 'package:provider/provider.dart';
 
 import '../../../core/auth/roles.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../attendance/data/attendance_repository.dart';
 import '../../auth/state/auth_provider.dart';
 import '../../auth/ui/login_screen.dart';
+import '../../monitoring/data/audit_log_repository.dart';
+import '../../monitoring/ui/audit_log_screen.dart';
+import '../../narrative/data/narrative_repository.dart';
+import '../../narrative/ui/narrative_screen.dart';
+import '../../settings/ui/change_password_screen.dart';
 import '../../settings/ui/help_support_screen.dart';
 import '../../settings/ui/notification_settings_screen.dart';
+import '../../staff/data/staff_repository.dart';
+import '../../staff/ui/staff_directory_screen.dart';
 
 const _roleLabels = {
   roleTeacher: 'Teacher',
@@ -18,13 +26,38 @@ const _roleLabels = {
   roleGuardian: 'Guardian',
 };
 
-/// The "More" tab: profile summary, settings, app info, and log out.
+/// The "More" tab: profile summary, settings, audit log (admin/super_admin
+/// only), narrative reports (teacher only), app info, and log out.
 /// Notification Settings and Help & Support push their own screens (see
 /// `../../settings/ui/`) — there's no backend notification/support system
 /// in ASIA, so those screens combine local device prefs and static content
 /// with real data pulled from endpoints already used elsewhere in the app.
+/// Audit Log used to be its own bottom-nav tab, `staffAdmin`-only; it now
+/// lives here as a row instead, freeing that nav slot for Calendar (shown to
+/// every role). Still gated to `staffAdmin` — `GET /api/auth/audit-logs/`
+/// is `ADMIN_ROLES`-only server-side, so nobody else can use it anyway.
+/// Narrative Reports is `teacher`-only for the same "don't crowd the bottom
+/// nav" reason (teacher already has Dashboard/Students/Attendance/Grades/
+/// Calendar/More) — `NarrativeReportViewSet` is `IsAdvisoryTeacherOrStaff`,
+/// so only teacher/admin/super_admin/registrar could write/read it anyway,
+/// and this app only offers teacher-authored entry (admin/registrar
+/// oversight of narrative reports isn't built — same scope boundary as
+/// Attendance/Grades, which staff also can't enter from mobile).
+/// Change Password is available to every role — self-service via
+/// `PATCH /api/auth/users/{id}/` with the caller's own id.
 class MoreScreen extends StatelessWidget {
-  const MoreScreen({super.key});
+  const MoreScreen({
+    super.key,
+    required this.auditLogRepository,
+    required this.narrativeRepository,
+    required this.attendanceRepository,
+    required this.staffRepository,
+  });
+
+  final AuditLogRepository auditLogRepository;
+  final NarrativeRepository narrativeRepository;
+  final AttendanceRepository attendanceRepository;
+  final StaffRepository staffRepository;
 
   Future<void> _logout(BuildContext context) async {
     await context.read<AuthProvider>().logout();
@@ -39,6 +72,8 @@ class MoreScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
     final roleLabel = _roleLabels[user?.role] ?? user?.role ?? '';
+    final showAuditLog = hasAnyRole(user?.role, staffAdmin);
+    final showNarrative = user?.role == roleTeacher;
 
     return Scaffold(
       backgroundColor: AppColors.dashboardBg,
@@ -58,7 +93,32 @@ class MoreScreen extends StatelessWidget {
         children: [
           _ProfileCard(name: user?.name ?? '', initials: user?.initials ?? '?', roleLabel: roleLabel),
           const SizedBox(height: AppSpacing.interCardGap),
-          const _SettingsCard(),
+          _SettingsCard(
+            showAuditLog: showAuditLog,
+            showNarrative: showNarrative,
+            showStaffDirectory: showAuditLog,
+            onAuditLogTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => AuditLogScreen(repository: auditLogRepository),
+              ),
+            ),
+            onNarrativeTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => NarrativeScreen(
+                  narrativeRepository: narrativeRepository,
+                  attendanceRepository: attendanceRepository,
+                ),
+              ),
+            ),
+            onChangePasswordTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+            ),
+            onStaffDirectoryTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => StaffDirectoryScreen(repository: staffRepository),
+              ),
+            ),
+          ),
           const SizedBox(height: AppSpacing.interCardGap),
           const _AppInfoCard(),
           const SizedBox(height: AppSpacing.interCardGap),
@@ -130,7 +190,6 @@ class _ProfileCard extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right, size: 13, color: Color(0xFFD0B0B0)),
         ],
       ),
     );
@@ -138,7 +197,23 @@ class _ProfileCard extends StatelessWidget {
 }
 
 class _SettingsCard extends StatelessWidget {
-  const _SettingsCard();
+  const _SettingsCard({
+    required this.showAuditLog,
+    required this.showNarrative,
+    required this.showStaffDirectory,
+    required this.onAuditLogTap,
+    required this.onNarrativeTap,
+    required this.onChangePasswordTap,
+    required this.onStaffDirectoryTap,
+  });
+
+  final bool showAuditLog;
+  final bool showNarrative;
+  final bool showStaffDirectory;
+  final VoidCallback onAuditLogTap;
+  final VoidCallback onNarrativeTap;
+  final VoidCallback onChangePasswordTap;
+  final VoidCallback onStaffDirectoryTap;
 
   @override
   Widget build(BuildContext context) {
@@ -152,6 +227,12 @@ class _SettingsCard extends StatelessWidget {
       child: Column(
         children: [
           _SettingsRow(
+            icon: Icons.lock_outline,
+            label: 'Change Password',
+            showDivider: true,
+            onTap: onChangePasswordTap,
+          ),
+          _SettingsRow(
             icon: Icons.notifications_outlined,
             label: 'Notification Settings',
             showDivider: true,
@@ -162,11 +243,32 @@ class _SettingsCard extends StatelessWidget {
           _SettingsRow(
             icon: Icons.help_outline,
             label: 'Help & Support',
-            showDivider: false,
+            showDivider: showStaffDirectory || showAuditLog || showNarrative,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
             ),
           ),
+          if (showStaffDirectory)
+            _SettingsRow(
+              icon: Icons.badge_outlined,
+              label: 'Staff Directory',
+              showDivider: showAuditLog || showNarrative,
+              onTap: onStaffDirectoryTap,
+            ),
+          if (showNarrative)
+            _SettingsRow(
+              icon: Icons.edit_note_outlined,
+              label: 'Narrative Reports',
+              showDivider: showAuditLog,
+              onTap: onNarrativeTap,
+            ),
+          if (showAuditLog)
+            _SettingsRow(
+              icon: Icons.history,
+              label: 'Audit Log',
+              showDivider: false,
+              onTap: onAuditLogTap,
+            ),
         ],
       ),
     );
