@@ -65,7 +65,10 @@ class AnnouncementsCard extends StatelessWidget {
 }
 
 class _AnnouncementRow extends StatelessWidget {
-  const _AnnouncementRow({required this.announcement, required this.showDivider});
+  const _AnnouncementRow({
+    required this.announcement,
+    required this.showDivider,
+  });
 
   final Announcement announcement;
   final bool showDivider;
@@ -133,7 +136,10 @@ class _AnnouncementRow extends StatelessWidget {
                   const SizedBox(height: 1),
                   Text(
                     announcement.relativeTime,
-                    style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted3),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      color: AppColors.textMuted3,
+                    ),
                   ),
                 ],
               ),

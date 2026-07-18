@@ -5,26 +5,53 @@ import '../../../core/auth/roles.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/ui/attendance_screen.dart';
 import '../../auth/state/auth_provider.dart';
+import '../../billing/data/billing_repository.dart';
 import '../../dashboard/data/dashboard_repository.dart';
 import '../../dashboard/ui/dashboard_screen.dart';
+import '../../dashboard/ui/financial_stats_screen.dart';
+import '../../advisory/data/advisory_api.dart';
 import '../../grades/data/grades_repository.dart';
 import '../../grades/ui/grades_screen.dart';
+import '../../monitoring/data/audit_log_repository.dart';
+import '../../monitoring/data/teachers_repository.dart';
+import '../../monitoring/ui/audit_log_screen.dart';
+import '../../monitoring/ui/monitoring_screen.dart';
 import '../../students/data/students_repository.dart';
 import '../../students/ui/students_list_screen.dart';
 import 'more_screen.dart';
 import 'widgets/shell_bottom_nav_bar.dart';
 
-enum ShellTab { dashboard, students, attendance, grades, more }
+enum ShellTab {
+  dashboard,
+  students,
+  attendance,
+  grades,
+  monitoring,
+  auditLog,
+  financialStats,
+  more,
+}
 
 /// Tabs visible per role, in nav-bar order. Students is read access for any
 /// authenticated role (matching the backend's `IsAdminRegistrarOrReadOnly`),
-/// so every role — including `accounting` — sees Dashboard+Students+More;
-/// only `gradeRoles` additionally get Attendance+Grades. Unknown roles
-/// (including `guardian`, which is dead on the backend) fall back to the
-/// same Dashboard+Students+More default.
+/// so every role — including `accounting` — sees Dashboard+Students+More.
+/// `admin`/`super_admin` get Monitoring instead of Attendance+Grades: those
+/// two roles get every section school-wide (see `AdvisoryProvider`), and
+/// `GET /api/auth/users/` backing the teacher picker is gated to exactly
+/// this pair server-side (`ADMIN_ROLES` in `accounts/audit.py` — notably
+/// excludes `registrar`), so Monitoring can't be offered to registrar.
+/// Audit Log and Financial Stats are `staffAdmin`-only for the same reason:
+/// `GET /api/auth/audit-logs/` is gated to `ADMIN_ROLES` server-side, and
+/// financial-summary is view-only staff data, not something registrar or
+/// teacher have any backend access to.
+/// `registrar`/`teacher` keep the original Attendance+Grades tabs. Unknown
+/// roles (including `guardian`, which is dead on the backend) fall back to
+/// the same Dashboard+Students+More default.
 List<ShellTab> _visibleTabsForRole(String role) {
   final tabs = [ShellTab.dashboard, ShellTab.students];
-  if (hasAnyRole(role, gradeRoles)) {
+  if (hasAnyRole(role, staffAdmin)) {
+    tabs.addAll([ShellTab.monitoring, ShellTab.auditLog, ShellTab.financialStats]);
+  } else if (hasAnyRole(role, gradeRoles)) {
     tabs.addAll([ShellTab.attendance, ShellTab.grades]);
   }
   tabs.add(ShellTab.more);
@@ -42,12 +69,20 @@ class AppShell extends StatefulWidget {
     required this.studentsRepository,
     required this.attendanceRepository,
     required this.gradesRepository,
+    required this.teachersRepository,
+    required this.advisoryApi,
+    required this.billingRepository,
+    required this.auditLogRepository,
   });
 
   final DashboardRepository dashboardRepository;
   final StudentsRepository studentsRepository;
   final AttendanceRepository attendanceRepository;
   final GradesRepository gradesRepository;
+  final TeachersRepository teachersRepository;
+  final AdvisoryApi advisoryApi;
+  final BillingRepository billingRepository;
+  final AuditLogRepository auditLogRepository;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -98,6 +133,23 @@ class _AppShellState extends State<AppShell> {
             const SizedBox.shrink(),
           if (_visited.contains(ShellTab.grades))
             GradesScreen(repository: widget.gradesRepository)
+          else
+            const SizedBox.shrink(),
+          if (_visited.contains(ShellTab.monitoring))
+            MonitoringScreen(
+              teachersRepository: widget.teachersRepository,
+              advisoryApi: widget.advisoryApi,
+              attendanceRepository: widget.attendanceRepository,
+              gradesRepository: widget.gradesRepository,
+            )
+          else
+            const SizedBox.shrink(),
+          if (_visited.contains(ShellTab.auditLog))
+            AuditLogScreen(repository: widget.auditLogRepository)
+          else
+            const SizedBox.shrink(),
+          if (_visited.contains(ShellTab.financialStats))
+            FinancialStatsScreen(repository: widget.billingRepository)
           else
             const SizedBox.shrink(),
           if (_visited.contains(ShellTab.more)) const MoreScreen() else const SizedBox.shrink(),

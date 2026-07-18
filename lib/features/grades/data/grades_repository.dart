@@ -10,8 +10,12 @@ class GradesRepository {
 
   final GradesApi _api;
 
-  Future<List<Subject>> fetchSubjects({required SchoolLevel schoolLevel}) =>
-      _api.fetchSubjects(schoolLevel: schoolLevel);
+  Future<List<Subject>> fetchSubjects({
+    required SchoolLevel schoolLevel,
+    required String gradeLevel,
+    String? strand,
+  }) =>
+      _api.fetchSubjects(schoolLevel: schoolLevel, gradeLevel: gradeLevel, strand: strand);
 
   Future<GradingTemplate?> fetchTemplateForSubject(int subjectId) =>
       _api.fetchTemplateForSubject(subjectId);

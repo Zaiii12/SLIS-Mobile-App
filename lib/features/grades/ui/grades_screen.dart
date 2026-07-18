@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/auth/roles.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../advisory/models/section_advisory.dart';
 import '../../advisory/state/advisory_provider.dart';
 import '../../attendance/ui/widgets/attendance_empty_states.dart';
+import '../../auth/state/auth_provider.dart';
 import '../data/grades_repository.dart';
 import '../models/graded_student.dart';
 import '../models/grading_period.dart';
@@ -14,6 +16,75 @@ import 'grade_colors.dart';
 import 'grade_detail_screen.dart';
 
 enum _LoadStatus { loading, loaded, error }
+
+/// Display label for a section's strand, if any — e.g. "Grade 11 - STEM A".
+String _sectionLabel(SectionAdvisory advisory) =>
+    advisory.strand == null ? advisory.section : '${advisory.section} (${advisory.strand})';
+
+/// Cascading School Level → Grade Level → Section filter over an already
+/// -fetched [SectionAdvisory] list (staff roles get every section
+/// school-wide from [AdvisoryProvider], per `advisory_api.dart`). Options at
+/// each tier are the distinct values actually present among the sections
+/// matching the tiers above it, so cycling never lands on an empty result.
+class _SectionFilter {
+  const _SectionFilter({required this.schoolLevel, required this.gradeLevel, required this.section});
+
+  final SchoolLevel schoolLevel;
+  final String gradeLevel;
+  final String section;
+
+  static List<SchoolLevel> levelsIn(List<SectionAdvisory> advisories) {
+    final present = advisories.map((a) => a.schoolLevel).toSet();
+    return SchoolLevel.values.where(present.contains).toList();
+  }
+
+  static List<String> gradeLevelsIn(List<SectionAdvisory> advisories, SchoolLevel level) {
+    final grades = advisories.where((a) => a.schoolLevel == level).map((a) => a.gradeLevel).toSet().toList();
+    grades.sort();
+    return grades;
+  }
+
+  /// Section labels within [level] + [gradeLevel], sorted for stable
+  /// cycling order (distinct because a grade level can repeat a section
+  /// name across strands, e.g. two "A" sections in different SHS strands).
+  static List<String> sectionsIn(List<SectionAdvisory> advisories, SchoolLevel level, String gradeLevel) {
+    final sections = advisories
+        .where((a) => a.schoolLevel == level && a.gradeLevel == gradeLevel)
+        .map(_sectionLabel)
+        .toSet()
+        .toList();
+    sections.sort();
+    return sections;
+  }
+
+  /// Finds the single [SectionAdvisory] matching this filter. Returns null
+  /// only if the advisory list changed out from under a stale selection
+  /// (e.g. mid-refresh) — callers should treat that as "reset filter".
+  static SectionAdvisory? resolve(List<SectionAdvisory> advisories, _SectionFilter filter) {
+    for (final a in advisories) {
+      if (a.schoolLevel == filter.schoolLevel &&
+          a.gradeLevel == filter.gradeLevel &&
+          _sectionLabel(a) == filter.section) {
+        return a;
+      }
+    }
+    return null;
+  }
+
+  /// The default filter for a freshly loaded advisory list: first school
+  /// level, first grade level within it, first section within that.
+  static _SectionFilter? initial(List<SectionAdvisory> advisories) {
+    final levels = levelsIn(advisories);
+    if (levels.isEmpty) return null;
+    final level = levels.first;
+    final grades = gradeLevelsIn(advisories, level);
+    if (grades.isEmpty) return null;
+    final grade = grades.first;
+    final sections = sectionsIn(advisories, level, grade);
+    if (sections.isEmpty) return null;
+    return _SectionFilter(schoolLevel: level, gradeLevel: grade, section: sections.first);
+  }
+}
 
 /// Grades tab: section/subject/period pickers + roster with final-grade
 /// badges. Reuses [AdvisoryProvider] for the section list (same source as
@@ -39,23 +110,44 @@ class _GradesScreenState extends State<GradesScreen> {
   List<GradedStudent> _roster = const [];
 
   bool _initializedFromAdvisory = false;
-  SchoolLevel? _subjectsLoadedForLevel;
 
-  /// Subjects are scoped by school level (`Subject.fromJson`'s
-  /// `school_level` filter), so unlike the old assumption of one global
-  /// subject list, they must be reloaded whenever the selected section's
-  /// school level differs from the last fetch (e.g. cycling from an
-  /// elementary section to a JHS one).
-  Future<void> _loadSubjectsIfNeeded(SchoolLevel schoolLevel) async {
-    if (_subjectsLoadedForLevel == schoolLevel) return;
+  /// The section (grade level + strand) subjects were last fetched for —
+  /// subjects are scoped by grade level (and strand for SHS), not just
+  /// school level, so cycling between e.g. two Grade 7 sections doesn't
+  /// need a reload but cycling to Grade 8 does.
+  SectionAdvisory? _subjectsLoadedForSection;
+
+  /// Staff (registrar/admin/super_admin) get every section school-wide via
+  /// [AdvisoryProvider], so a single cycle-through-everything picker (what
+  /// teachers use, via [_sectionIndex]) doesn't scale — this drives a
+  /// cascading School Level → Grade Level → Section picker instead. Null
+  /// until the advisory list has loaded at least once.
+  _SectionFilter? _staffFilter;
+
+  /// Subjects are scoped by grade level (and strand for SHS) — see
+  /// `Subject.fromJson`'s `grade_level`/`strand` fields — so they must be
+  /// reloaded whenever the selected section's grade/strand differs from the
+  /// last fetch (e.g. cycling from Grade 7 to Grade 8, or between strands).
+  Future<void> _loadSubjectsIfNeeded(SectionAdvisory section) async {
+    final loadedFor = _subjectsLoadedForSection;
+    if (loadedFor != null &&
+        loadedFor.schoolLevel == section.schoolLevel &&
+        loadedFor.gradeLevel == section.gradeLevel &&
+        loadedFor.strand == section.strand) {
+      return;
+    }
     setState(() => _subjectsStatus = _LoadStatus.loading);
     try {
-      final subjects = await widget.repository.fetchSubjects(schoolLevel: schoolLevel);
+      final subjects = await widget.repository.fetchSubjects(
+        schoolLevel: section.schoolLevel,
+        gradeLevel: section.gradeLevel,
+        strand: section.strand,
+      );
       if (!mounted) return;
       setState(() {
         _subjects = subjects;
         _subjectIndex = 0;
-        _subjectsLoadedForLevel = schoolLevel;
+        _subjectsLoadedForSection = section;
         _subjectsStatus = _LoadStatus.loaded;
       });
       _loadRoster();
@@ -72,12 +164,39 @@ class _GradesScreenState extends State<GradesScreen> {
     }
   }
 
+  /// True for registrar/admin/super_admin, who get every section
+  /// school-wide (see [AdvisoryProvider.load]) and so need the cascading
+  /// filter rather than teacher's simple cycle-through-mine picker.
+  bool _isStaffRole(BuildContext context) {
+    final role = context.read<AuthProvider>().user?.role;
+    return hasAnyRole(role, academicStaff);
+  }
+
+  /// Resolves the currently selected section: staff use [_staffFilter]
+  /// against the full school-wide list, teachers use [_sectionIndex]
+  /// against their own (short) advisory list.
+  SectionAdvisory? _selectedSection(List<SectionAdvisory> advisories, bool isStaff) {
+    if (isStaff) {
+      final filter = _staffFilter;
+      if (filter == null) return null;
+      return _SectionFilter.resolve(advisories, filter);
+    }
+    if (advisories.isEmpty) return null;
+    return advisories[_sectionIndex.clamp(0, advisories.length - 1)];
+  }
+
   Future<void> _loadRoster() async {
     final advisory = context.read<AdvisoryProvider>();
-    if (advisory.advisories.isEmpty) return;
-    final section = advisory.advisories[_sectionIndex.clamp(0, advisory.advisories.length - 1)];
-    if (_subjectsLoadedForLevel != section.schoolLevel) {
-      _loadSubjectsIfNeeded(section.schoolLevel);
+    final isStaff = _isStaffRole(context);
+    final section = _selectedSection(advisory.advisories, isStaff);
+    if (section == null) return;
+    final loadedFor = _subjectsLoadedForSection;
+    final subjectsCurrent = loadedFor != null &&
+        loadedFor.schoolLevel == section.schoolLevel &&
+        loadedFor.gradeLevel == section.gradeLevel &&
+        loadedFor.strand == section.strand;
+    if (!subjectsCurrent) {
+      _loadSubjectsIfNeeded(section);
       return;
     }
     if (_subjects.isEmpty) return;
@@ -104,6 +223,43 @@ class _GradesScreenState extends State<GradesScreen> {
 
   void _cycleSection(int sectionCount) {
     setState(() => _sectionIndex = (_sectionIndex + 1) % sectionCount);
+    _loadRoster();
+  }
+
+  void _cycleSchoolLevel(List<SectionAdvisory> advisories) {
+    final filter = _staffFilter;
+    if (filter == null) return;
+    final levels = _SectionFilter.levelsIn(advisories);
+    final next = levels[(levels.indexOf(filter.schoolLevel) + 1) % levels.length];
+    final grades = _SectionFilter.gradeLevelsIn(advisories, next);
+    final grade = grades.first;
+    final sections = _SectionFilter.sectionsIn(advisories, next, grade);
+    setState(() {
+      _staffFilter = _SectionFilter(schoolLevel: next, gradeLevel: grade, section: sections.first);
+    });
+    _loadRoster();
+  }
+
+  void _cycleGradeLevel(List<SectionAdvisory> advisories) {
+    final filter = _staffFilter;
+    if (filter == null) return;
+    final grades = _SectionFilter.gradeLevelsIn(advisories, filter.schoolLevel);
+    final next = grades[(grades.indexOf(filter.gradeLevel) + 1) % grades.length];
+    final sections = _SectionFilter.sectionsIn(advisories, filter.schoolLevel, next);
+    setState(() {
+      _staffFilter = _SectionFilter(schoolLevel: filter.schoolLevel, gradeLevel: next, section: sections.first);
+    });
+    _loadRoster();
+  }
+
+  void _cycleStaffSection(List<SectionAdvisory> advisories) {
+    final filter = _staffFilter;
+    if (filter == null) return;
+    final sections = _SectionFilter.sectionsIn(advisories, filter.schoolLevel, filter.gradeLevel);
+    final next = sections[(sections.indexOf(filter.section) + 1) % sections.length];
+    setState(() {
+      _staffFilter = _SectionFilter(schoolLevel: filter.schoolLevel, gradeLevel: filter.gradeLevel, section: next);
+    });
     _loadRoster();
   }
 
@@ -137,12 +293,16 @@ class _GradesScreenState extends State<GradesScreen> {
   @override
   Widget build(BuildContext context) {
     final advisory = context.watch<AdvisoryProvider>();
+    final isStaff = _isStaffRole(context);
 
     if (!_initializedFromAdvisory && advisory.status == AdvisoryStatus.loaded) {
       _initializedFromAdvisory = true;
-      if (advisory.advisories.isNotEmpty) {
-        final section = advisory.advisories[_sectionIndex.clamp(0, advisory.advisories.length - 1)];
-        _loadSubjectsIfNeeded(section.schoolLevel);
+      if (isStaff) {
+        _staffFilter = _SectionFilter.initial(advisory.advisories);
+      }
+      final section = _selectedSection(advisory.advisories, isStaff);
+      if (section != null) {
+        _loadSubjectsIfNeeded(section);
       }
     }
 
@@ -154,11 +314,11 @@ class _GradesScreenState extends State<GradesScreen> {
           style: GoogleFonts.dmSans(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.headingDark),
         ),
       ),
-      body: _buildBody(advisory),
+      body: _buildBody(advisory, isStaff),
     );
   }
 
-  Widget _buildBody(AdvisoryProvider advisory) {
+  Widget _buildBody(AdvisoryProvider advisory, bool isStaff) {
     if (advisory.status == AdvisoryStatus.loading || advisory.status == AdvisoryStatus.initial) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -175,12 +335,18 @@ class _GradesScreenState extends State<GradesScreen> {
       );
     }
     final sections = advisory.advisories;
-    final section = sections[_sectionIndex.clamp(0, sections.length - 1)];
+    final section = _selectedSection(sections, isStaff);
+    if (section == null) {
+      return const Padding(
+        padding: EdgeInsets.all(AppSpacing.dashboardScreenPadding),
+        child: NoSectionsAssignedState(),
+      );
+    }
 
     if (_subjectsStatus == _LoadStatus.error) {
       return Padding(
         padding: const EdgeInsets.all(AppSpacing.dashboardScreenPadding),
-        child: NetworkErrorState(onRetry: () => _loadSubjectsIfNeeded(section.schoolLevel)),
+        child: NetworkErrorState(onRetry: () => _loadSubjectsIfNeeded(section)),
       );
     }
     if (_subjectsStatus == _LoadStatus.loading || _subjects.isEmpty) {
@@ -201,15 +367,25 @@ class _GradesScreenState extends State<GradesScreen> {
           ),
           child: Column(
             children: [
+              if (isStaff) ...[
+                _StaffSectionFilterRow(
+                  filter: _staffFilter!,
+                  onCycleSchoolLevel: () => _cycleSchoolLevel(sections),
+                  onCycleGradeLevel: () => _cycleGradeLevel(sections),
+                  onCycleSection: () => _cycleStaffSection(sections),
+                ),
+                const SizedBox(height: 8),
+              ],
               Row(
                 children: [
-                  Expanded(
-                    child: _PickerField(
-                      label: section.displayName,
-                      onTap: () => _cycleSection(sections.length),
+                  if (!isStaff)
+                    Expanded(
+                      child: _PickerField(
+                        label: section.displayName,
+                        onTap: () => _cycleSection(sections.length),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
+                  if (!isStaff) const SizedBox(width: 8),
                   Expanded(
                     child: _PickerField(label: subject.name, onTap: _cycleSubject),
                   ),
@@ -270,6 +446,43 @@ class _GradesScreenState extends State<GradesScreen> {
           },
         );
     }
+  }
+}
+
+/// Staff-only (registrar/admin/super_admin) cascading School Level → Grade
+/// Level → Section row, replacing the teacher's single section
+/// [_PickerField] since staff need to reach any of potentially dozens of
+/// sections school-wide rather than cycling through 1-2 of their own.
+class _StaffSectionFilterRow extends StatelessWidget {
+  const _StaffSectionFilterRow({
+    required this.filter,
+    required this.onCycleSchoolLevel,
+    required this.onCycleGradeLevel,
+    required this.onCycleSection,
+  });
+
+  final _SectionFilter filter;
+  final VoidCallback onCycleSchoolLevel;
+  final VoidCallback onCycleGradeLevel;
+  final VoidCallback onCycleSection;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _PickerField(label: filter.schoolLevel.label, onTap: onCycleSchoolLevel),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _PickerField(label: filter.gradeLevel, onTap: onCycleGradeLevel),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _PickerField(label: filter.section, onTap: onCycleSection),
+        ),
+      ],
+    );
   }
 }
 

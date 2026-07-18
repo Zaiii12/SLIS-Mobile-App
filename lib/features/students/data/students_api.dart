@@ -24,12 +24,18 @@ class StudentsApi {
 
   final Dio _student;
 
-  Future<StudentsPage> fetchStudents({String? search, String? status, int page = 1}) async {
+  Future<StudentsPage> fetchStudents({
+    String? search,
+    String? status,
+    String? ordering,
+    int page = 1,
+  }) async {
     final response = await _student.get(
       '/api/students/',
       queryParameters: {
         if (search != null && search.isNotEmpty) 'search': search,
         if (status != null) 'status': status,
+        if (ordering != null && ordering.isNotEmpty) 'ordering': ordering,
         'page': page,
       },
     );

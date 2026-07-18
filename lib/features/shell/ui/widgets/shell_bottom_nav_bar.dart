@@ -17,6 +17,9 @@ const _allNavItems = [
   _NavItem(ShellTab.students, Icons.people_outline, 'Students'),
   _NavItem(ShellTab.attendance, Icons.event_available_outlined, 'Attendance'),
   _NavItem(ShellTab.grades, Icons.menu_book_outlined, 'Grades'),
+  _NavItem(ShellTab.monitoring, Icons.visibility_outlined, 'Monitoring'),
+  _NavItem(ShellTab.auditLog, Icons.history, 'Audit Log'),
+  _NavItem(ShellTab.financialStats, Icons.pie_chart_outline, 'Financials'),
   _NavItem(ShellTab.more, Icons.more_horiz, 'More'),
 ];
 

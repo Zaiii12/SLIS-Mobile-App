@@ -28,6 +28,10 @@ class GradingTemplate {
 
 String schoolLevelToJson(SchoolLevel level) {
   switch (level) {
+    case SchoolLevel.nursery:
+      return 'nursery';
+    case SchoolLevel.kindergarten:
+      return 'kindergarten';
     case SchoolLevel.elementary:
       return 'elementary';
     case SchoolLevel.juniorHighschool:

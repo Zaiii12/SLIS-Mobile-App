@@ -35,18 +35,39 @@ class DashboardData {
     required this.totalStudents,
     required this.activeStudents,
     required this.enrolledThisYear,
+    required this.completedThisYear,
     required this.pendingEnrollment,
+    required this.pendingEnrollmentByYear,
+    required this.unpaidInvoices,
+    required this.scholarshipCount,
     required this.attendance,
     required this.announcements,
     required this.statsAreLive,
     required this.attendanceIsLive,
+    required this.unpaidInvoicesAreLive,
+    required this.scholarshipCountIsLive,
   });
 
   final String schoolYear;
   final int totalStudents;
   final int activeStudents;
   final int enrolledThisYear;
+
+  /// `enrollment_status=completed` count for the current school year — the
+  /// Enrollment Funnel's "Completed" step (see DashboardApi.fetchStats).
+  final int completedThisYear;
   final int pendingEnrollment;
+
+  /// School year → pending count, across ALL years — see
+  /// DashboardApi.fetchStats. Empty map if `statsAreLive` is false (the
+  /// fallback sample data doesn't have a real per-year breakdown).
+  final Map<String, int> pendingEnrollmentByYear;
+  final int unpaidInvoices;
+
+  /// Total `EnrollmentScholarship` rows (`GET /api/enrollment-scholarships/`
+  /// count, unfiltered by year — see DashboardApi.fetchScholarshipCount).
+  /// Only fetched for `staffAdmin` roles.
+  final int scholarshipCount;
   final AttendanceBreakdown attendance;
   final List<Announcement> announcements;
 
@@ -56,4 +77,11 @@ class DashboardData {
   /// sample data as real.
   final bool statsAreLive;
   final bool attendanceIsLive;
+  final bool unpaidInvoicesAreLive;
+  final bool scholarshipCountIsLive;
+
+  /// Matches the ASIA web dashboard's `enrollmentRate` — enrolled ÷ total
+  /// students, rounded. 0 when there are no students yet (avoids NaN).
+  int get enrollmentRate =>
+      totalStudents == 0 ? 0 : ((enrolledThisYear / totalStudents) * 100).round();
 }

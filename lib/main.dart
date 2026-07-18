@@ -15,10 +15,18 @@ import 'features/auth/data/auth_repository.dart';
 import 'features/auth/state/auth_provider.dart';
 import 'features/auth/ui/login_screen.dart';
 import 'features/auth/ui/splash_screen.dart';
+import 'features/billing/data/billing_api.dart';
+import 'features/billing/data/billing_repository.dart';
+import 'features/billing/data/enrollment_api.dart';
+import 'features/billing/data/enrollment_repository.dart';
 import 'features/dashboard/data/dashboard_api.dart';
 import 'features/dashboard/data/dashboard_repository.dart';
 import 'features/grades/data/grades_api.dart';
 import 'features/grades/data/grades_repository.dart';
+import 'features/monitoring/data/audit_log_api.dart';
+import 'features/monitoring/data/audit_log_repository.dart';
+import 'features/monitoring/data/teachers_api.dart';
+import 'features/monitoring/data/teachers_repository.dart';
 import 'features/students/data/students_api.dart';
 import 'features/students/data/students_repository.dart';
 
@@ -75,11 +83,33 @@ void main() {
     DashboardApi(
       studentClient: dioClientFactory.student,
       enrollmentClient: dioClientFactory.enrollment,
+      billingClient: dioClientFactory.billing,
     ),
   );
 
-  final advisoryProvider = AdvisoryProvider(
-    advisoryApi: AdvisoryApi(dioClientFactory.enrollment),
+  final billingRepository = BillingRepository(
+    BillingApi(
+      billingClient: dioClientFactory.billing,
+      studentClient: dioClientFactory.student,
+    ),
+  );
+
+  final enrollmentRepository = EnrollmentRepository(
+    EnrollmentApi(
+      enrollmentClient: dioClientFactory.enrollment,
+      studentClient: dioClientFactory.student,
+    ),
+  );
+
+  final advisoryApi = AdvisoryApi(dioClientFactory.enrollment);
+  final advisoryProvider = AdvisoryProvider(advisoryApi: advisoryApi);
+
+  final teachersRepository = TeachersRepository(
+    TeachersApi(dioClientFactory.identity),
+  );
+
+  final auditLogRepository = AuditLogRepository(
+    AuditLogApi(dioClientFactory.identity),
   );
 
   final studentsRepository = StudentsRepository(
@@ -98,10 +128,15 @@ void main() {
     SlisMobileApp(
       authRepository: authRepository,
       dashboardRepository: dashboardRepository,
+      billingRepository: billingRepository,
+      enrollmentRepository: enrollmentRepository,
       advisoryProvider: advisoryProvider,
+      advisoryApi: advisoryApi,
       studentsRepository: studentsRepository,
       attendanceRepository: attendanceRepository,
       gradesRepository: gradesRepository,
+      teachersRepository: teachersRepository,
+      auditLogRepository: auditLogRepository,
     ),
   );
 }
@@ -111,18 +146,28 @@ class SlisMobileApp extends StatefulWidget {
     super.key,
     required this.authRepository,
     required this.dashboardRepository,
+    required this.billingRepository,
+    required this.enrollmentRepository,
     required this.advisoryProvider,
+    required this.advisoryApi,
     required this.studentsRepository,
     required this.attendanceRepository,
     required this.gradesRepository,
+    required this.teachersRepository,
+    required this.auditLogRepository,
   });
 
   final AuthRepository authRepository;
   final DashboardRepository dashboardRepository;
+  final BillingRepository billingRepository;
+  final EnrollmentRepository enrollmentRepository;
   final AdvisoryProvider advisoryProvider;
+  final AdvisoryApi advisoryApi;
   final StudentsRepository studentsRepository;
   final AttendanceRepository attendanceRepository;
   final GradesRepository gradesRepository;
+  final TeachersRepository teachersRepository;
+  final AuditLogRepository auditLogRepository;
 
   @override
   State<SlisMobileApp> createState() => _SlisMobileAppState();
@@ -136,7 +181,8 @@ class SlisMobileApp extends StatefulWidget {
 /// the foreground closes that gap: e.g. logging in elsewhere while this app
 /// is backgrounded is now caught as soon as the user returns to it, instead
 /// of only on the next unrelated request.
-class _SlisMobileAppState extends State<SlisMobileApp> with WidgetsBindingObserver {
+class _SlisMobileAppState extends State<SlisMobileApp>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
@@ -154,7 +200,8 @@ class _SlisMobileAppState extends State<SlisMobileApp> with WidgetsBindingObserv
     if (state != AppLifecycleState.resumed) return;
 
     final authProvider = navigatorKey.currentContext?.read<AuthProvider>();
-    if (authProvider == null || authProvider.status != AuthStatus.authenticated) return;
+    if (authProvider == null || authProvider.status != AuthStatus.authenticated)
+      return;
 
     unawaited(_revalidateSession());
   }
@@ -189,9 +236,14 @@ class _SlisMobileAppState extends State<SlisMobileApp> with WidgetsBindingObserv
           ),
         ),
         Provider.value(value: widget.dashboardRepository),
+        Provider.value(value: widget.billingRepository),
+        Provider.value(value: widget.enrollmentRepository),
+        Provider.value(value: widget.advisoryApi),
         Provider.value(value: widget.studentsRepository),
         Provider.value(value: widget.attendanceRepository),
         Provider.value(value: widget.gradesRepository),
+        Provider.value(value: widget.teachersRepository),
+        Provider.value(value: widget.auditLogRepository),
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,

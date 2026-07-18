@@ -6,7 +6,11 @@ import '../../../../core/theme/app_theme.dart';
 import '../../models/dashboard_data.dart';
 
 class AttendanceCard extends StatelessWidget {
-  const AttendanceCard({super.key, required this.attendance, required this.date});
+  const AttendanceCard({
+    super.key,
+    required this.attendance,
+    required this.date,
+  });
 
   final AttendanceBreakdown attendance;
   final DateTime date;
@@ -41,7 +45,10 @@ class AttendanceCard extends StatelessWidget {
                 ),
                 Text(
                   DateFormat('MMMM d').format(date),
-                  style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted3),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: AppColors.textMuted3,
+                  ),
                 ),
               ],
             ),
@@ -81,7 +88,10 @@ class AttendanceCard extends StatelessWidget {
                   children: [
                     Text(
                       'Attendance rate',
-                      style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted3),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        color: AppColors.textMuted3,
+                      ),
                     ),
                     Text(
                       '${attendance.ratePercent}%',
@@ -100,7 +110,9 @@ class AttendanceCard extends StatelessWidget {
                     value: attendance.ratePercent / 100,
                     minHeight: 6,
                     backgroundColor: AppColors.cardBorder,
-                    valueColor: const AlwaysStoppedAnimation(AppColors.successFill),
+                    valueColor: const AlwaysStoppedAnimation(
+                      AppColors.successFill,
+                    ),
                   ),
                 ),
               ],

@@ -6,6 +6,8 @@ import '../../../core/auth/roles.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/state/auth_provider.dart';
 import '../../auth/ui/login_screen.dart';
+import '../../settings/ui/help_support_screen.dart';
+import '../../settings/ui/notification_settings_screen.dart';
 
 const _roleLabels = {
   roleTeacher: 'Teacher',
@@ -16,9 +18,11 @@ const _roleLabels = {
   roleGuardian: 'Guardian',
 };
 
-/// The "More" tab: profile summary, settings stubs, app info, and log out.
-/// Settings rows are non-functional per the design handoff — no detail
-/// screens exist for them yet.
+/// The "More" tab: profile summary, settings, app info, and log out.
+/// Notification Settings and Help & Support push their own screens (see
+/// `../../settings/ui/`) — there's no backend notification/support system
+/// in ASIA, so those screens combine local device prefs and static content
+/// with real data pulled from endpoints already used elsewhere in the app.
 class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
 
@@ -145,10 +149,24 @@ class _SettingsCard extends StatelessWidget {
         border: Border.all(color: AppColors.cardBorder),
       ),
       clipBehavior: Clip.antiAlias,
-      child: const Column(
+      child: Column(
         children: [
-          _SettingsRow(icon: Icons.notifications_outlined, label: 'Notification Settings', showDivider: true),
-          _SettingsRow(icon: Icons.help_outline, label: 'Help & Support', showDivider: false),
+          _SettingsRow(
+            icon: Icons.notifications_outlined,
+            label: 'Notification Settings',
+            showDivider: true,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const NotificationSettingsScreen()),
+            ),
+          ),
+          _SettingsRow(
+            icon: Icons.help_outline,
+            label: 'Help & Support',
+            showDivider: false,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
+            ),
+          ),
         ],
       ),
     );
@@ -156,16 +174,22 @@ class _SettingsCard extends StatelessWidget {
 }
 
 class _SettingsRow extends StatelessWidget {
-  const _SettingsRow({required this.icon, required this.label, required this.showDivider});
+  const _SettingsRow({
+    required this.icon,
+    required this.label,
+    required this.showDivider,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
   final bool showDivider;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {},
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         decoration: BoxDecoration(

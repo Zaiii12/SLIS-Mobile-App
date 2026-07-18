@@ -39,7 +39,11 @@ class TodaysClassesCard extends StatelessWidget {
             ),
             child: Text(
               "Today's Classes",
-              style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.headingDark),
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.headingDark,
+              ),
             ),
           ),
           for (var i = 0; i < sections.length; i++)
@@ -78,14 +82,20 @@ class _ClassRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        border: showDivider ? const Border(bottom: BorderSide(color: AppColors.rowDivider)) : null,
+        border: showDivider
+            ? const Border(bottom: BorderSide(color: AppColors.rowDivider))
+            : null,
       ),
       child: Row(
         children: [
           Expanded(
             child: Text(
               section.displayName,
-              style: GoogleFonts.dmSans(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.headingDark),
+              style: GoogleFonts.dmSans(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.headingDark,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -100,7 +110,11 @@ class _ClassRow extends StatelessWidget {
               ),
               child: Text(
                 showGradesAction ? 'Enter Grades' : 'Take Attendance',
-                style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
+                style: GoogleFonts.dmSans(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
               ),
             ),
           ),

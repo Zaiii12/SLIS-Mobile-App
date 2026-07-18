@@ -60,7 +60,9 @@ class _FinancialSnapshotCardState extends State<FinancialSnapshotCard> {
                 InkWell(
                   onTap: () => setState(() => _blurred = !_blurred),
                   child: Icon(
-                    _blurred ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                    _blurred
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
                     size: 16,
                     color: AppColors.textMuted2,
                   ),
@@ -77,7 +79,10 @@ class _FinancialSnapshotCardState extends State<FinancialSnapshotCard> {
                   children: [
                     Text(
                       'Collected',
-                      style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted3),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        color: AppColors.textMuted3,
+                      ),
                     ),
                     Text(
                       '${widget.collectedPercent}%',
@@ -96,7 +101,9 @@ class _FinancialSnapshotCardState extends State<FinancialSnapshotCard> {
                     value: widget.collectedPercent / 100,
                     minHeight: 6,
                     backgroundColor: AppColors.cardBorder,
-                    valueColor: const AlwaysStoppedAnimation(AppColors.successFill),
+                    valueColor: const AlwaysStoppedAnimation(
+                      AppColors.successFill,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -125,7 +132,10 @@ class _FinancialSnapshotCardState extends State<FinancialSnapshotCard> {
                     onTap: () => setState(() => _blurred = false),
                     child: Text(
                       'Tap to reveal amounts',
-                      style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted3),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        color: AppColors.textMuted3,
+                      ),
                     ),
                   ),
                 ],
@@ -158,7 +168,10 @@ class _AmountChip extends StatelessWidget {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
-        decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(10),
+        ),
         child: ClipRect(
           child: Column(
             children: [
@@ -169,10 +182,17 @@ class _AmountChip extends StatelessWidget {
                 ),
                 child: Text(
                   amount,
-                  style: GoogleFonts.dmSans(fontSize: 15, fontWeight: FontWeight.w700, color: textColor),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
+                  ),
                 ),
               ),
-              Text(label, style: GoogleFonts.dmSans(fontSize: 10, color: textColor)),
+              Text(
+                label,
+                style: GoogleFonts.dmSans(fontSize: 10, color: textColor),
+              ),
             ],
           ),
         ),

@@ -4,7 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_theme.dart';
 
 class StatPill {
-  const StatPill({required this.label, required this.background, required this.textColor});
+  const StatPill({
+    required this.label,
+    required this.background,
+    required this.textColor,
+  });
 
   final String label;
   final Color background;
@@ -77,7 +81,9 @@ class StatCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Align(
-            alignment: pillAlignEnd ? Alignment.centerRight : Alignment.centerLeft,
+            alignment: pillAlignEnd
+                ? Alignment.centerRight
+                : Alignment.centerLeft,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(

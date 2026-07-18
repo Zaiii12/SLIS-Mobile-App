@@ -1,7 +1,29 @@
-enum SchoolLevel { elementary, juniorHighschool, seniorHighschool }
+enum SchoolLevel { nursery, kindergarten, elementary, juniorHighschool, seniorHighschool }
+
+extension SchoolLevelLabel on SchoolLevel {
+  /// Human-readable label, e.g. for filter pickers.
+  String get label {
+    switch (this) {
+      case SchoolLevel.nursery:
+        return 'Nursery';
+      case SchoolLevel.kindergarten:
+        return 'Kindergarten';
+      case SchoolLevel.elementary:
+        return 'Elementary';
+      case SchoolLevel.juniorHighschool:
+        return 'Junior High School';
+      case SchoolLevel.seniorHighschool:
+        return 'Senior High School';
+    }
+  }
+}
 
 SchoolLevel _schoolLevelFromJson(String value) {
   switch (value) {
+    case 'nursery':
+      return SchoolLevel.nursery;
+    case 'kindergarten':
+      return SchoolLevel.kindergarten;
     case 'elementary':
       return SchoolLevel.elementary;
     case 'senior_highschool':

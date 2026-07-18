@@ -24,6 +24,13 @@ class AdvisoryApi {
       '/api/section-advisories/',
       queryParameters: {
         if (teacherUserId != null) 'teacher_user_id': teacherUserId,
+        // Default DRF pagination is PAGE_SIZE=20 (enrollment_service
+        // settings) — without this, schools with >20 section advisories
+        // silently lose everything past the first page (ordered
+        // `-school_year, grade_level, section`), e.g. Monitoring's
+        // School Level/Grade Level filters only showing whatever grade
+        // sorts first. MAX_PAGE_SIZE is 500.
+        'page_size': 500,
       },
     );
     final data = response.data;

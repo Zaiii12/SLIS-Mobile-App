@@ -24,10 +24,23 @@ class GradesApi {
 
   final Dio _enrollment;
 
-  Future<List<Subject>> fetchSubjects({required SchoolLevel schoolLevel}) async {
+  /// Scoped to the section's own grade level (and strand, for SHS) — per
+  /// `subjects/views.py`'s `filterset_fields`, `/api/subjects/` supports
+  /// filtering by `grade_level`/`strand` directly, so a Grade 7 section only
+  /// sees Grade 7 subjects instead of every subject in Junior High School.
+  Future<List<Subject>> fetchSubjects({
+    required SchoolLevel schoolLevel,
+    required String gradeLevel,
+    String? strand,
+  }) async {
     final response = await _enrollment.get(
       '/api/subjects/',
-      queryParameters: {'school_level': schoolLevelToJson(schoolLevel), 'page_size': 500},
+      queryParameters: {
+        'school_level': schoolLevelToJson(schoolLevel),
+        'grade_level': gradeLevel,
+        if (strand != null) 'strand': strand,
+        'page_size': 500,
+      },
     );
     return _resultsOf(response.data).map(Subject.fromJson).toList();
   }
