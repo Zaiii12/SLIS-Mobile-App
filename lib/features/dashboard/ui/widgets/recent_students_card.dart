@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../students/models/student.dart';
+import '../../../students/ui/student_detail_screen.dart';
 
 /// Admin/super_admin card: newest student records, backed by real
 /// `GET /api/students/?ordering=-student_id`
@@ -63,78 +64,85 @@ class _StudentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.rowDivider)),
+    return InkWell(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => StudentDetailScreen(student: student)),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Color(0xFFFDF3F2),
-            ),
-            child: Center(
-              child: Text(
-                student.initials,
-                style: GoogleFonts.dmSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
-                ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: AppColors.rowDivider)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFFFDF3F2),
               ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  student.name.isEmpty ? 'Unknown student' : student.name,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.headingDark,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 1),
-                Text(
-                  'LRN ${student.lrn}',
+              child: Center(
+                child: Text(
+                  student.initials,
                   style: GoogleFonts.dmSans(
                     fontSize: 11,
-                    color: AppColors.textMuted3,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: student.isActive
-                  ? AppColors.successBg
-                  : AppColors.neutralPillBg,
-              borderRadius: BorderRadius.circular(AppRadii.pill),
-            ),
-            child: Text(
-              student.status,
-              style: GoogleFonts.dmSans(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: student.isActive
-                    ? AppColors.successText
-                    : AppColors.neutralPillText,
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    student.name.isEmpty ? 'Unknown student' : student.name,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.headingDark,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    'LRN ${student.lrn}',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      color: AppColors.textMuted3,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: student.isActive
+                    ? AppColors.successBg
+                    : AppColors.neutralPillBg,
+                borderRadius: BorderRadius.circular(AppRadii.pill),
+              ),
+              child: Text(
+                student.status,
+                style: GoogleFonts.dmSans(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: student.isActive
+                      ? AppColors.successText
+                      : AppColors.neutralPillText,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Icon(Icons.chevron_right, size: 16, color: AppColors.textMuted3),
+          ],
+        ),
       ),
     );
   }

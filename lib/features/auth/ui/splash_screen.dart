@@ -12,6 +12,7 @@ import '../../grades/data/grades_repository.dart';
 import '../../monitoring/data/audit_log_repository.dart';
 import '../../monitoring/data/teachers_repository.dart';
 import '../../narrative/data/narrative_repository.dart';
+import '../../settings/state/school_year_provider.dart';
 import '../../shell/ui/app_shell.dart';
 import '../../staff/data/staff_repository.dart';
 import '../../students/data/students_repository.dart';
@@ -36,7 +37,11 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _resolveSession() async {
     final authProvider = context.read<AuthProvider>();
-    await authProvider.tryRestoreSession();
+    final schoolYearProvider = context.read<SchoolYearProvider>();
+    await Future.wait([
+      authProvider.tryRestoreSession(),
+      schoolYearProvider.initialize(),
+    ]);
     if (!mounted) return;
 
     final destination = authProvider.status == AuthStatus.authenticated

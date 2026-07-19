@@ -9,6 +9,7 @@
 class RecentEnrollment {
   const RecentEnrollment({
     required this.enrollmentId,
+    required this.studentId,
     required this.studentName,
     required this.gradeLevel,
     required this.schoolLevel,
@@ -20,6 +21,7 @@ class RecentEnrollment {
   factory RecentEnrollment.fromJson(Map<String, dynamic> json) {
     return RecentEnrollment(
       enrollmentId: json['enrollment_id'].toString(),
+      studentId: json['student_id'].toString(),
       studentName: json['student_name'] as String? ?? '',
       gradeLevel: json['grade_level'] as String? ?? '',
       schoolLevel: json['school_level'] as String? ?? '',
@@ -30,6 +32,7 @@ class RecentEnrollment {
   }
 
   final String enrollmentId;
+  final String studentId;
   final String studentName;
   final String gradeLevel;
   final String schoolLevel;

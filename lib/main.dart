@@ -33,6 +33,8 @@ import 'features/monitoring/data/teachers_api.dart';
 import 'features/monitoring/data/teachers_repository.dart';
 import 'features/narrative/data/narrative_api.dart';
 import 'features/narrative/data/narrative_repository.dart';
+import 'features/settings/data/school_year_store.dart';
+import 'features/settings/state/school_year_provider.dart';
 import 'features/staff/data/staff_api.dart';
 import 'features/staff/data/staff_repository.dart';
 import 'features/students/data/students_api.dart';
@@ -177,6 +179,11 @@ void _runApp() {
     StaffApi(dioClientFactory.identity),
   );
 
+  final schoolYearProvider = SchoolYearProvider(
+    billingRepository: billingRepository,
+    store: SchoolYearStore(),
+  );
+
   runApp(
     SlisMobileApp(
       authRepository: authRepository,
@@ -193,6 +200,7 @@ void _runApp() {
       calendarRepository: calendarRepository,
       narrativeRepository: narrativeRepository,
       staffRepository: staffRepository,
+      schoolYearProvider: schoolYearProvider,
     ),
   );
 }
@@ -214,6 +222,7 @@ class SlisMobileApp extends StatefulWidget {
     required this.calendarRepository,
     required this.narrativeRepository,
     required this.staffRepository,
+    required this.schoolYearProvider,
   });
 
   final AuthRepository authRepository;
@@ -230,6 +239,7 @@ class SlisMobileApp extends StatefulWidget {
   final CalendarRepository calendarRepository;
   final NarrativeRepository narrativeRepository;
   final StaffRepository staffRepository;
+  final SchoolYearProvider schoolYearProvider;
 
   @override
   State<SlisMobileApp> createState() => _SlisMobileAppState();
@@ -309,6 +319,7 @@ class _SlisMobileAppState extends State<SlisMobileApp>
         Provider.value(value: widget.calendarRepository),
         Provider.value(value: widget.narrativeRepository),
         Provider.value(value: widget.staffRepository),
+        ChangeNotifierProvider.value(value: widget.schoolYearProvider),
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,

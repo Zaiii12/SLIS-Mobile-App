@@ -15,7 +15,9 @@ import '../../billing/models/invoice.dart';
 import '../../billing/ui/billing_format.dart';
 import '../../billing/ui/pending_enrollment_screen.dart';
 import '../../billing/ui/unpaid_invoices_list_screen.dart';
+import '../../settings/state/school_year_provider.dart';
 import '../../shell/ui/app_shell.dart';
+import '../../shell/ui/widgets/school_year_picker_chip.dart';
 import '../../students/data/students_repository.dart';
 import '../../students/models/student.dart';
 import '../data/dashboard_repository.dart';
@@ -51,25 +53,45 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   late Future<DashboardData> _dataFuture;
 
+  /// The school year [_dataFuture] was last fetched with — [build] compares
+  /// this against the live [SchoolYearProvider] value on every rebuild (via
+  /// `context.watch`) and refetches on a mismatch, same guarded-refetch
+  /// idiom as `_TeacherBodyState._loadForSections`'s `identical()` check.
+  /// `context.watch` (rather than a manually attached `addListener`) is used
+  /// so a picker change is guaranteed to trigger a rebuild — Provider
+  /// already handles the listener lifecycle correctly.
+  String? _fetchedForYear;
+
   @override
   void initState() {
     super.initState();
-    _dataFuture = widget.repository.fetch(
+    _dataFuture = _fetch();
+  }
+
+  Future<DashboardData> _fetch() {
+    final schoolYear = context.read<SchoolYearProvider>().schoolYear;
+    _fetchedForYear = schoolYear;
+    return widget.repository.fetch(
       role: context.read<AuthProvider>().user?.role,
+      schoolYear: schoolYear,
     );
   }
 
   Future<void> _refresh() async {
-    final data = await widget.repository.fetch(
-      role: context.read<AuthProvider>().user?.role,
-    );
+    final data = await _fetch();
+    if (!mounted) return;
     setState(() => _dataFuture = Future.value(data));
   }
 
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
+    final schoolYear = context.watch<SchoolYearProvider>().schoolYear;
     final today = DateTime.now();
+
+    if (schoolYear != _fetchedForYear) {
+      _dataFuture = _fetch();
+    }
 
     return Scaffold(
       backgroundColor: AppColors.dashboardBg,
@@ -105,6 +127,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           },
         ),
         actions: [
+          const Center(child: SchoolYearPickerChip()),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
@@ -735,18 +758,29 @@ class _AccountingBody extends StatefulWidget {
 
 class _AccountingBodyState extends State<_AccountingBody> {
   late Future<FinancialSummary> _financialSummaryFuture;
+  String? _fetchedForYear;
 
   @override
   void initState() {
     super.initState();
-    _financialSummaryFuture = context
-        .read<BillingRepository>()
-        .fetchFinancialSummary();
+    _financialSummaryFuture = _fetchSummary();
+  }
+
+  Future<FinancialSummary> _fetchSummary() {
+    final schoolYear = context.read<SchoolYearProvider>().schoolYear;
+    _fetchedForYear = schoolYear;
+    return context.read<BillingRepository>().fetchFinancialSummary(
+      schoolYear: schoolYear,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final billingRepository = context.read<BillingRepository>();
+    final schoolYear = context.watch<SchoolYearProvider>().schoolYear;
+    if (schoolYear != _fetchedForYear) {
+      _financialSummaryFuture = _fetchSummary();
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

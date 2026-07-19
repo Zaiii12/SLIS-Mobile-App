@@ -36,4 +36,11 @@ class StudentsRepository {
   Future<Student> updateStudent(String id, Map<String, dynamic> body) {
     return _api.updateStudent(id, body);
   }
+
+  /// Looks up a single student by id — used to open [StudentDetailScreen]
+  /// from rows (recent enrollments, roster) that only carry a student id,
+  /// not the full [Student] record.
+  Future<Student> fetchStudentById(String id) {
+    return _api.fetchStudentById(id);
+  }
 }

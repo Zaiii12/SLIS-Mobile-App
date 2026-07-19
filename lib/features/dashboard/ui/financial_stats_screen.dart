@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../billing/data/billing_repository.dart';
@@ -9,6 +10,8 @@ import '../../billing/data/enrollment_repository.dart';
 import '../../billing/models/invoice.dart';
 import '../../billing/ui/billing_format.dart';
 import '../../billing/ui/generate_invoice_screen.dart';
+import '../../settings/state/school_year_provider.dart';
+import '../../shell/ui/widgets/school_year_picker_chip.dart';
 import 'widgets/financial_snapshot_card.dart';
 
 enum _LoadStatus { loading, loaded, error }
@@ -56,9 +59,12 @@ class _FinancialStatsScreenState extends State<FinancialStatsScreen> {
   bool _hasMore = false;
   bool _loadingMore = false;
 
+  String? _fetchedForYear;
+
   @override
   void initState() {
     super.initState();
+    _fetchedForYear = context.read<SchoolYearProvider>().schoolYear;
     _loadSummary();
     _loadPayments();
     _scrollController.addListener(_onScroll);
@@ -83,7 +89,9 @@ class _FinancialStatsScreenState extends State<FinancialStatsScreen> {
   Future<void> _loadSummary() async {
     setState(() => _summaryStatus = _LoadStatus.loading);
     try {
-      final summary = await widget.repository.fetchFinancialSummary();
+      final summary = await widget.repository.fetchFinancialSummary(
+        schoolYear: context.read<SchoolYearProvider>().schoolYear,
+      );
       if (!mounted) return;
       setState(() {
         _summary = summary;
@@ -180,6 +188,14 @@ class _FinancialStatsScreenState extends State<FinancialStatsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final schoolYear = context.watch<SchoolYearProvider>().schoolYear;
+    if (schoolYear != _fetchedForYear) {
+      _fetchedForYear = schoolYear;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadSummary();
+      });
+    }
+
     return Scaffold(
       backgroundColor: AppColors.dashboardBg,
       appBar: AppBar(
@@ -193,6 +209,7 @@ class _FinancialStatsScreenState extends State<FinancialStatsScreen> {
           ),
         ),
         actions: [
+          const Center(child: SchoolYearPickerChip()),
           IconButton(
             icon: const Icon(
               Icons.add_circle_outline,

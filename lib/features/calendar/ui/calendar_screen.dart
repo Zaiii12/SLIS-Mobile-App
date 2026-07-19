@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../settings/state/school_year_provider.dart';
+import '../../shell/ui/widgets/school_year_picker_chip.dart';
 import '../data/calendar_repository.dart';
 import '../models/calendar_event.dart';
 import 'calendar_pdf.dart';
@@ -54,10 +57,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
   _LoadStatus _loadStatus = _LoadStatus.loading;
   List<CalendarEvent> _events = const [];
   bool _refreshing = false;
+  String? _fetchedForYear;
 
   @override
   void initState() {
     super.initState();
+    _fetchedForYear = context.read<SchoolYearProvider>().schoolYear;
     _load();
     _searchController.addListener(() {
       setState(() => _search = _searchController.text.trim().toLowerCase());
@@ -80,6 +85,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
     try {
       final result = await widget.repository.fetchEvents(
+        schoolYear: context.read<SchoolYearProvider>().schoolYear,
         eventType: _eventType.isEmpty ? null : _eventType,
         ordering: 'start_date',
       );
@@ -247,6 +253,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final schoolYear = context.watch<SchoolYearProvider>().schoolYear;
+    if (schoolYear != _fetchedForYear) {
+      _fetchedForYear = schoolYear;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _load();
+      });
+    }
+
     return Scaffold(
       backgroundColor: AppColors.dashboardBg,
       appBar: AppBar(
@@ -260,6 +274,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         ),
         actions: [
+          const Center(child: SchoolYearPickerChip()),
           IconButton(
             icon: const Icon(Icons.print_outlined, size: 20, color: AppColors.textMuted3),
             onPressed: _loadStatus == _LoadStatus.loaded ? _openExportSheet : null,

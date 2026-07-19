@@ -28,7 +28,7 @@ class DashboardRepository {
   static const _fallbackUnpaidInvoices = 18;
   static const _fallbackScholarshipCount = 12;
 
-  Future<DashboardData> fetch({String? role}) async {
+  Future<DashboardData> fetch({String? role, String? schoolYear}) async {
     final now = DateTime.now();
 
     // Stats, attendance, and unpaid invoices come from different endpoints
@@ -41,7 +41,10 @@ class DashboardRepository {
     // unpaidInvoicesAreLive rather than silently treating the fallback as
     // real — the old version had no error surface at all.
     var statsAreLive = true;
-    final stats = await _api.fetchStats().catchError((error, stackTrace) {
+    final stats = await _api.fetchStats(schoolYear: schoolYear).catchError((
+      error,
+      stackTrace,
+    ) {
       debugPrint(
         'DashboardApi.fetchStats failed, using sample data: $error\n$stackTrace',
       );

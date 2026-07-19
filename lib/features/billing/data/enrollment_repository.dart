@@ -56,6 +56,10 @@ class EnrollmentRepository {
     return _api.fetchEnrollment(enrollmentId);
   }
 
+  Future<List<Enrollment>> fetchEnrollmentsForStudent(String studentId) {
+    return _api.fetchEnrollmentsForStudent(studentId);
+  }
+
   Future<Enrollment> updateEnrollment(
     String enrollmentId, {
     String? section,

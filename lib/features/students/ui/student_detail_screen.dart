@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import '../../../core/auth/roles.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/state/auth_provider.dart';
+import '../../billing/data/enrollment_repository.dart';
+import '../../billing/models/enrollment.dart';
 import '../data/students_repository.dart';
 import '../models/student.dart';
 import 'student_status_pill.dart';
@@ -24,6 +26,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   bool _editing = false;
   bool _saving = false;
   String? _error;
+  String? _latestEnrollmentStatus;
+  bool _loadingEnrollment = true;
 
   late final _firstNameController = TextEditingController(text: _student.firstName);
   late final _middleNameController = TextEditingController(text: _student.middleName);
@@ -37,6 +41,25 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   void initState() {
     super.initState();
     _student = widget.student;
+    _loadLatestEnrollment();
+  }
+
+  Future<void> _loadLatestEnrollment() async {
+    try {
+      final enrollments = await context
+          .read<EnrollmentRepository>()
+          .fetchEnrollmentsForStudent(_student.id);
+      if (!mounted) return;
+      setState(() {
+        _latestEnrollmentStatus = enrollments.isEmpty
+            ? null
+            : enrollments.first.enrollmentStatus;
+        _loadingEnrollment = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingEnrollment = false);
+    }
   }
 
   @override
@@ -235,7 +258,22 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                 style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted3),
               ),
               const SizedBox(height: 10),
-              StudentStatusPill(status: _student.statusValue, fontSize: 11),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                alignment: WrapAlignment.center,
+                children: [
+                  StudentStatusPill(status: _student.statusValue, fontSize: 11),
+                  if (_loadingEnrollment)
+                    const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  else if (_latestEnrollmentStatus != null)
+                    _EnrollmentStatusPill(status: _latestEnrollmentStatus!),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.interCardGap),
@@ -504,6 +542,38 @@ class _BoxedDropdown extends StatelessWidget {
             if (next != null) onChanged(next);
           },
         ),
+      ),
+    );
+  }
+}
+
+const _enrollmentStatusColors = {
+  'enrolled': (AppColors.successBg, AppColors.successText),
+  'pending': (AppColors.warningBg, AppColors.warningText2),
+  'cancelled': (AppColors.dangerBg, AppColors.dangerText),
+  'completed': (AppColors.neutralPillBg, AppColors.neutralPillText),
+  'transferred_out': (AppColors.neutralPillBg, AppColors.neutralPillText),
+};
+
+class _EnrollmentStatusPill extends StatelessWidget {
+  const _EnrollmentStatusPill({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors =
+        _enrollmentStatusColors[status] ??
+        (AppColors.neutralPillBg, AppColors.neutralPillText);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: colors.$1,
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+      ),
+      child: Text(
+        'Enrollment: ${enrollmentStatusLabel(status)}',
+        style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w700, color: colors.$2),
       ),
     );
   }

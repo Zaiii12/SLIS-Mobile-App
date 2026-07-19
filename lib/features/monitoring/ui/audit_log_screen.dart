@@ -19,7 +19,7 @@ const _roleOptions = {
 const _statusOptions = {
   '': 'All statuses',
   'success': 'Success',
-  'failure': 'Failure',
+  'failed': 'Failure',
 };
 
 const _orderingOptions = {

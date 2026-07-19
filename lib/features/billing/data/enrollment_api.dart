@@ -221,6 +221,30 @@ class EnrollmentApi {
     return Enrollment.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// All enrollment records for one student, newest-first by
+  /// `enrollment_id` — used to show the student's current enrollment status
+  /// on their profile, since `Student.status` (active/inactive/transferred/
+  /// graduated/dropped) has no "pending" value and is unrelated to
+  /// enrollment approval state (`EnrollmentFilter.student_id`, confirmed in
+  /// `enrollments/filters.py`).
+  Future<List<Enrollment>> fetchEnrollmentsForStudent(String studentId) async {
+    final response = await _enrollment.get(
+      '/api/enrollments/',
+      queryParameters: {
+        'student_id': studentId,
+        'ordering': '-enrollment_id',
+        'page_size': 500,
+      },
+    );
+    final data = response.data;
+    final results =
+        (data is Map<String, dynamic>
+            ? data['results'] as List?
+            : data as List?) ??
+        [];
+    return results.cast<Map<String, dynamic>>().map(Enrollment.fromJson).toList();
+  }
+
   /// `PATCH /api/enrollments/<id>/` — only [section] and [enrollmentStatus]
   /// are exposed for mobile quick-edit (see [Enrollment]'s doc comment for
   /// why grade/level/strand/semester are excluded). Registrar has write

@@ -25,6 +25,8 @@ class BillingRepository {
     return _api.fetchFinancialSummary(schoolYear: schoolYear);
   }
 
+  Future<String?> fetchCurrentSchoolYear() => _api.fetchCurrentSchoolYear();
+
   Future<PaymentsPage> fetchPayments({String? paymentMethod, int page = 1}) {
     return _api.fetchPayments(paymentMethod: paymentMethod, page: page);
   }

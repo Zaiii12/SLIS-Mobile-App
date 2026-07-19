@@ -90,6 +90,17 @@ class BillingApi {
     return FinancialSummary.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// `GET /api/school-settings/current/` — billing-service's `SchoolSetting`
+  /// singleton (matches ASIA web admin's `getSchoolSettings`), used to seed
+  /// the global school-year filter's default. Returns null (rather than
+  /// throwing) only if the field itself is missing/blank; any request
+  /// failure propagates for the caller to handle.
+  Future<String?> fetchCurrentSchoolYear() async {
+    final response = await _billing.get('/api/school-settings/current/');
+    final data = response.data as Map<String, dynamic>;
+    return (data['current_school_year'] as String?)?.trim();
+  }
+
   /// `GET /api/payments/` — read access, gated to `BILLING_ROLES`
   /// (`super_admin`/`admin`/`accounting`, `billing/views.py:489`).
   Future<PaymentsPage> fetchPayments({

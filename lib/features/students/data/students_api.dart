@@ -53,6 +53,13 @@ class StudentsApi {
     );
   }
 
+  /// `GET /api/students/{id}/` — standard `ModelViewSet` retrieve action,
+  /// same read access as the list endpoint.
+  Future<Student> fetchStudentById(String id) async {
+    final response = await _student.get('/api/students/$id/');
+    return Student.fromJson(response.data as Map<String, dynamic>);
+  }
+
   /// `PATCH /api/students/{id}/` — allowed for admin/super_admin/registrar
   /// per student-service's `IsAdminRegistrarOrReadOnly` permission class.
   /// Throws `DioException` with response status 400 if the server's
