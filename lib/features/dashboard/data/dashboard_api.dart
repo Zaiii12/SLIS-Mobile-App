@@ -79,10 +79,17 @@ class DashboardApi {
 
   Future<int> fetchUnpaidInvoiceCount() async {
     // /api/invoices/summary/ returns real aggregate counts across ALL
-    // invoices (not just the current page), keyed by status.
+    // invoices (not just the current page), keyed by status. "Unpaid" here
+    // means "still has a balance owed" — unpaid AND partially_paid — since
+    // apply_payment() (billing/services.py) flips status to partially_paid
+    // the moment any payment less than the full balance is recorded; only
+    // counting the literal "unpaid" bucket would make this tile silently
+    // drop every invoice the instant it received a partial payment.
     final response = await _billing.get('/api/invoices/summary/');
     final data = response.data as Map<String, dynamic>;
-    return data['unpaid'] as int? ?? 0;
+    final unpaid = data['unpaid'] as int? ?? 0;
+    final partiallyPaid = data['partially_paid'] as int? ?? 0;
+    return unpaid + partiallyPaid;
   }
 
   /// `GET /api/enrollment-scholarships/` (enrollment-service's `scholarships`

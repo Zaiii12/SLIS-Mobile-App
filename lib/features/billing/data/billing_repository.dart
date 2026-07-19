@@ -9,8 +9,28 @@ class BillingRepository {
 
   final BillingApi _api;
 
-  Future<InvoicesPage> fetchUnpaidInvoices({String? search, int page = 1}) {
-    return _api.fetchInvoices(status: 'unpaid', search: search, page: page);
+  /// "Unpaid" here means "still has a balance owed" — `unpaid` AND
+  /// `partially_paid` invoices, not just the literal `status="unpaid"` rows.
+  /// `apply_payment()` (billing/services.py) flips an invoice's status to
+  /// `partially_paid` the moment any payment less than the full balance is
+  /// recorded, so treating `unpaid` alone as "outstanding" would silently
+  /// drop every invoice the instant it received its first partial payment.
+  /// `StudentInvoiceViewSet.filterset_fields` only does exact-match on
+  /// `status` (plain django-filter `CharFilter`, no `in`/multi-value
+  /// support), so this fetches both statuses as separate requests and merges
+  /// them client-side rather than sending a comma-joined value the backend
+  /// would silently match zero rows against.
+  Future<InvoicesPage> fetchUnpaidInvoices({String? search, int page = 1}) async {
+    final results = await Future.wait([
+      _api.fetchInvoices(status: 'unpaid', search: search, page: page),
+      _api.fetchInvoices(status: 'partially_paid', search: search, page: page),
+    ]);
+    final combined = [...results[0].invoices, ...results[1].invoices]
+      ..sort((a, b) => (a.dueDate ?? '').compareTo(b.dueDate ?? ''));
+    return InvoicesPage(
+      invoices: combined,
+      hasMore: results[0].hasMore || results[1].hasMore,
+    );
   }
 
   Future<Invoice> fetchInvoiceDetail(String invoiceId) {

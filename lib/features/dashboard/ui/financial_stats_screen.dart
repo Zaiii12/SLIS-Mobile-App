@@ -10,6 +10,8 @@ import '../../billing/data/enrollment_repository.dart';
 import '../../billing/models/invoice.dart';
 import '../../billing/ui/billing_format.dart';
 import '../../billing/ui/generate_invoice_screen.dart';
+import '../../billing/ui/pick_unpaid_invoice_sheet.dart';
+import '../../billing/ui/record_payment_sheet.dart';
 import '../../settings/state/school_year_provider.dart';
 import '../../shell/ui/widgets/school_year_picker_chip.dart';
 import 'widgets/financial_snapshot_card.dart';
@@ -186,6 +188,29 @@ class _FinancialStatsScreenState extends State<FinancialStatsScreen> {
     if (generated == true) _refresh();
   }
 
+  /// Quick action: pick an unpaid invoice, then record a payment against it,
+  /// without leaving this screen. Chains two sheets since this screen only
+  /// has the payments feed loaded (no balances) — see
+  /// `PickUnpaidInvoiceSheet`'s doc comment for why a picker is needed first.
+  Future<void> _openRecordPayment() async {
+    final invoice = await showModalBottomSheet<Invoice>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => PickUnpaidInvoiceSheet(repository: widget.repository),
+    );
+    if (invoice == null || !mounted) return;
+    final updated = await showModalBottomSheet<Invoice>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) =>
+          RecordPaymentSheet(invoice: invoice, repository: widget.repository),
+    );
+    if (updated == null || !mounted) return;
+    _refresh();
+  }
+
   @override
   Widget build(BuildContext context) {
     final schoolYear = context.watch<SchoolYearProvider>().schoolYear;
@@ -212,15 +237,6 @@ class _FinancialStatsScreenState extends State<FinancialStatsScreen> {
           const Center(child: SchoolYearPickerChip()),
           IconButton(
             icon: const Icon(
-              Icons.add_circle_outline,
-              size: 20,
-              color: AppColors.primary,
-            ),
-            tooltip: 'Generate Invoice',
-            onPressed: _openGenerateInvoice,
-          ),
-          IconButton(
-            icon: const Icon(
               Icons.refresh,
               size: 20,
               color: AppColors.textMuted3,
@@ -234,6 +250,35 @@ class _FinancialStatsScreenState extends State<FinancialStatsScreen> {
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.dashboardScreenPadding,
+                AppSpacing.dashboardScreenPadding,
+                AppSpacing.dashboardScreenPadding,
+                0,
+              ),
+              sliver: SliverToBoxAdapter(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _QuickActionOption(
+                        icon: Icons.payments_outlined,
+                        label: 'Record Payment',
+                        onTap: _openRecordPayment,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.statGridGap),
+                    Expanded(
+                      child: _QuickActionOption(
+                        icon: Icons.add_circle_outline,
+                        label: 'Generate Invoice',
+                        onTap: _openGenerateInvoice,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             SliverPadding(
               padding: const EdgeInsets.all(AppSpacing.dashboardScreenPadding),
               sliver: SliverToBoxAdapter(child: _buildSummary()),
@@ -539,6 +584,52 @@ class _PaymentRow extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             const Icon(Icons.chevron_right, size: 14, color: Color(0xFFD0B0B0)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Selectable option card for a top-level financial quick action (Record
+/// Payment / Generate Invoice) — moved out of the app bar so both actions are
+/// visible side by side without needing to discover an icon-only button.
+class _QuickActionOption extends StatelessWidget {
+  const _QuickActionOption({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadii.dashboardCard),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.cardWhite,
+          borderRadius: BorderRadius.circular(AppRadii.dashboardCard),
+          border: Border.all(color: AppColors.cardBorder),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 20, color: AppColors.primary),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.dmSans(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.headingDark,
+              ),
+            ),
           ],
         ),
       ),

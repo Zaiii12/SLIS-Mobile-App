@@ -131,7 +131,14 @@ class BillingApi {
   }
 
   /// `POST /api/payments/` — records a payment against one invoice.
-  /// Server-side `apply_payment()` distributes the amount across
+  /// `payment_date` must be sent here: `StudentPayment.payment_date` has no
+  /// `null=True`/`blank=True` and is not in `StudentPaymentSerializer`'s
+  /// `read_only_fields`, so DRF rejects the request at validation time with
+  /// `{"payment_date": ["This field is required."]}` before
+  /// `perform_create()` ever runs its own today's-date default — omitting it
+  /// previously caused every payment submission to fail this way regardless
+  /// of what the user filled in, since the missing field isn't shown on this
+  /// form at all. Server-side `apply_payment()` distributes the amount across
   /// installments and flips the invoice's `status` automatically; it also
   /// guards against overpayment itself (400 with a peso-formatted message
   /// comparing `amount_paid` against the computed `balance`), so no
@@ -144,10 +151,16 @@ class BillingApi {
     String? referenceNumber,
     String? notes,
   }) async {
+    final now = DateTime.now();
+    final paymentDate =
+        '${now.year.toString().padLeft(4, '0')}-'
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}';
     await _billing.post(
       '/api/payments/',
       data: {
         'invoice': invoiceId,
+        'payment_date': paymentDate,
         'amount_paid': amountPaid,
         'payment_method': paymentMethod,
         if (referenceNumber != null && referenceNumber.isNotEmpty)

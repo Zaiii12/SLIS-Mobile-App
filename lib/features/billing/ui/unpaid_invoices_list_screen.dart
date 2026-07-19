@@ -8,6 +8,7 @@ import '../data/billing_repository.dart';
 import '../models/invoice.dart';
 import 'billing_format.dart';
 import 'invoice_detail_screen.dart';
+import 'record_payment_sheet.dart';
 
 enum _DueFilter { all, overdue, upcoming }
 
@@ -388,6 +389,17 @@ class _InvoiceRow extends StatelessWidget {
   final BillingRepository repository;
   final VoidCallback onChanged;
 
+  Future<void> _quickRecordPayment(BuildContext context) async {
+    final updated = await showModalBottomSheet<Invoice>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) =>
+          RecordPaymentSheet(invoice: invoice, repository: repository),
+    );
+    if (updated != null) onChanged();
+  }
+
   @override
   Widget build(BuildContext context) {
     final enrollment = invoice.enrollmentDetail;
@@ -502,6 +514,16 @@ class _InvoiceRow extends StatelessWidget {
               ],
             ),
             const SizedBox(width: 4),
+            IconButton(
+              icon: const Icon(
+                Icons.payments_outlined,
+                size: 18,
+                color: AppColors.primary,
+              ),
+              tooltip: 'Record Payment',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => _quickRecordPayment(context),
+            ),
             const Icon(Icons.chevron_right, size: 13, color: Color(0xFFD0B0B0)),
           ],
         ),
